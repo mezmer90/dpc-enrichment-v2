@@ -47,10 +47,15 @@ env/
 logs/
 batch_enrichment_v2.log
 
-# Data files (large outputs)
-data/enriched/*.json
+# Data files
+# Allow input data in data/final/ (needed for enrichment)
+# Block output data (enriched, markdown, progress)
+data/enriched/
 data/markdown/
-data/progress/*.json
+data/progress/
+
+# Keep input data
+!data/final/*.json
 
 # Backups
 *.bak
