@@ -20,8 +20,11 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
+        'pool_pre_ping': True,  # Verify connections before using
+        'pool_recycle': 300,    # Recycle connections after 5 minutes
+        'connect_args': {
+            'connect_timeout': 10  # 10 second timeout for connections
+        }
     }
 
     # Redis (for Celery)

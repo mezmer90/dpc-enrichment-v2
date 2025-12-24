@@ -59,9 +59,22 @@ def create_app(config_name=None):
     app.register_blueprint(main.bp)
     app.register_blueprint(api.bp, url_prefix='/api')
 
-    # Create database tables
-    with app.app_context():
-        db.create_all()
+    # Create database tables (only in development, not on Railway)
+    # On Railway, tables are created on first request to avoid blocking startup
+    if not os.getenv('RAILWAY_ENVIRONMENT'):
+        with app.app_context():
+            db.create_all()
+
+    # Create tables on first request (Railway only)
+    @app.before_request
+    def create_tables_on_first_request():
+        if os.getenv('RAILWAY_ENVIRONMENT') and not hasattr(create_tables_on_first_request, 'done'):
+            try:
+                db.create_all()
+                create_tables_on_first_request.done = True
+                app.logger.info("Database tables created successfully on first request")
+            except Exception as e:
+                app.logger.error(f"Failed to create database tables: {e}")
 
     # Simple password protection middleware
     @app.before_request
