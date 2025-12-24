@@ -273,6 +273,7 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
             ... (other args inherited from parent)
         """
         # Write practices data to temporary input file in expected format
+        # Orchestrator expects dict with 'metadata' and 'practices' keys
         import json
         input_data = {
             'metadata': {
