@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Runs - DPC Enrichment{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Enrichment Runs</h1>
+    <p class="page-subtitle">History of all enrichment runs</p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Run ID</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Cost</th>
+                <th>Started</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in runs.items %}
+                <tr>
+                    <td><strong>#{{ run.id }}</strong></td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if run.status == 'completed' else 'warning' if run.status == 'running' else 'danger' }}">
+                            {{ run.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ run.successful }}/{{ run.total_practices }}
+                        <small class="text-muted">({{ "%.1f"|format(run.success_rate) }}%)</small>
+                    </td>
+                    <td>{{ "$%.2f"|format(run.total_cost|float if run.total_cost else 0) }}</td>
+                    <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
+                    <td>
+                        {% if run.started_at and run.completed_at %}
+                            {{ ((run.completed_at - run.started_at).total_seconds() / 60)|int }} min
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem;">
+                        No runs yet. Start your first enrichment from the dashboard.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if runs.pages > 1 %}
+    <div class="pagination" style="margin-top: 1.5rem;">
+        {% if runs.has_prev %}
+            <a href="?page={{ runs.prev_num }}">← Previous</a>
+        {% endif %}
+
+        {% for page_num in runs.iter_pages(left_edge=2, right_edge=2) %}
+            {% if page_num %}
+                <a href="?page={{ page_num }}" class="{% if page_num == runs.page %}active{% endif %}">
+                    {{ page_num }}
+                </a>
+            {% else %}
+                <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if runs.has_next %}
+            <a href="?page={{ runs.next_num }}">Next →</a>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

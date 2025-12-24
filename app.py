@@ -5,14 +5,32 @@ Entry point for Railway deployment.
 """
 
 import os
-from flask import Flask
+from flask import Flask, session, redirect, url_for, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
 from pathlib import Path
+from functools import wraps
 
 # Initialize extensions
 db = SQLAlchemy()
-login_manager = LoginManager()
+
+# Simple password protection
+APP_PASSWORD = os.getenv('APP_PASSWORD', 'dpc2025')  # Change in production!
+
+
+def require_password(f):
+    """Decorator to require password for route access"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Allow health check and static files
+        if request.path in ['/health', '/login', '/logout'] or request.path.startswith('/static'):
+            return f(*args, **kwargs)
+
+        # Check if authenticated
+        if not session.get('authenticated'):
+            return redirect(url_for('main.login'))
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def create_app(config_name=None):
@@ -35,18 +53,26 @@ def create_app(config_name=None):
 
     # Initialize extensions
     db.init_app(app)
-    login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
 
     # Register blueprints
-    from webapp.routes import main, api, auth
+    from webapp.routes import main, api
     app.register_blueprint(main.bp)
     app.register_blueprint(api.bp, url_prefix='/api')
-    app.register_blueprint(auth.bp, url_prefix='/auth')
 
     # Create database tables
     with app.app_context():
         db.create_all()
+
+    # Simple password protection middleware
+    @app.before_request
+    def check_password():
+        # Allow health check, login, logout, and static files
+        if request.path in ['/health', '/login', '/logout'] or request.path.startswith('/static'):
+            return None
+
+        # Check if authenticated
+        if not session.get('authenticated'):
+            return redirect(url_for('main.login'))
 
     # Health check endpoint for Railway
     @app.route('/health')

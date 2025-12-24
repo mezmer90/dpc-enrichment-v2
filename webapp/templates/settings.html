@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - DPC Enrichment{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">API status and system configuration</p>
+</div>
+
+<div class="card">
+    <h2 class="card-header">API Status</h2>
+
+    {% if api_statuses %}
+        <table>
+            <thead>
+                <tr>
+                    <th>API</th>
+                    <th>Status</th>
+                    <th>Last Checked</th>
+                    <th>Last Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for api in api_statuses %}
+                    <tr>
+                        <td><strong>{{ api.api_name }}</strong></td>
+                        <td>
+                            <span class="badge badge-{{ 'success' if api.is_healthy else 'danger' }}">
+                                {{ '✓ Healthy' if api.is_healthy else '✗ Error' }}
+                            </span>
+                        </td>
+                        <td>{{ api.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            {% if api.last_error %}
+                                <small class="text-muted">{{ api.last_error[:100] }}</small>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted" style="padding: 1rem;">No API status available yet.</p>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h2 class="card-header">Environment Configuration</h2>
+    <div style="padding: 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Setting</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>OpenRouter API Key</td>
+                    <td>
+                        <span class="badge badge-success">Configured</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td>ScraperAPI Key</td>
+                    <td>
+                        <span class="badge badge-success">Configured</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Max Workers</td>
+                    <td>6</td>
+                </tr>
+                <tr>
+                    <td>Checkpoint Interval</td>
+                    <td>1 practice</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h2 class="card-header">About</h2>
+    <p style="color: var(--gray-600);">
+        <strong>DPC Enrichment System V2</strong><br>
+        Automated enrichment of Direct Primary Care practice data using AI-powered web scraping.<br><br>
+
+        <strong>Features:</strong>
+        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li>Multi-method web scraping with fallbacks</li>
+            <li>AI-powered data extraction (Gemini 2.5 Flash)</li>
+            <li>Real-time progress monitoring</li>
+            <li>Circuit breaker pattern for fault tolerance</li>
+            <li>Incremental saving with checkpoints</li>
+            <li>CSV/JSON export capabilities</li>
+        </ul>
+    </p>
+</div>
+{% endblock %}

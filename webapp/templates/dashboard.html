@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - DPC Enrichment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+    .stat-meta {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+        margin-top: 0.5rem;
+    }
+
+    .control-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .control-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .control-buttons button {
+        flex: 1;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--gray-700);
+        font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    .run-status {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .run-status.running {
+        background: #dbeafe;
+        border-left: 4px solid var(--info);
+    }
+
+    .run-status.paused {
+        background: #fef3c7;
+        border-left: 4px solid var(--warning);
+    }
+
+    .recent-runs {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .run-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .run-item:last-child {
+        border-bottom: none;
+    }
+
+    .run-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .run-stats {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.875rem;
+        color: var(--gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Monitor and control DPC practice enrichment</p>
+</div>
+
+<!-- Statistics Overview -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Practices</div>
+        <div class="stat-value">{{ total_practices }}</div>
+        <div class="stat-meta">In database</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" style="color: var(--success);">{{ completed }}</div>
+        <div class="stat-meta">{{ "%.1f"|format((completed / total_practices * 100) if total_practices else 0) }}% success rate</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">Failed</div>
+        <div class="stat-value" style="color: var(--danger);">{{ failed }}</div>
+        <div class="stat-meta">Need retry</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value" style="color: var(--info);">{{ pending }}</div>
+        <div class="stat-meta">Not yet processed</div>
+    </div>
+</div>
+
+<!-- Enrichment Control Panel -->
+<div class="control-panel">
+    <h2 class="card-header">Enrichment Control</h2>
+
+    {% if current_run %}
+        <div class="run-status {{ current_run.status }}">
+            <strong>Run #{{ current_run.id }}</strong> -
+            {% if current_run.status == 'running' %}
+                <span style="color: var(--info);">🔄 Running...</span>
+            {% elif current_run.status == 'paused' %}
+                <span style="color: var(--warning);">⏸️ Paused</span>
+            {% endif %}
+            <br>
+            <small>{{ current_run.successful }}/{{ current_run.total_practices }} completed ({{ "%.1f"|format(current_run.success_rate) }}%)</small>
+        </div>
+
+        <div class="control-buttons">
+            {% if current_run.status == 'running' %}
+                <button class="btn btn-warning" onclick="pauseEnrichment()">⏸️ Pause</button>
+                <button class="btn btn-danger" onclick="stopEnrichment()">⏹️ Stop</button>
+            {% elif current_run.status == 'paused' %}
+                <button class="btn btn-success" onclick="resumeEnrichment()">▶️ Resume</button>
+                <button class="btn btn-danger" onclick="stopEnrichment()">⏹️ Stop</button>
+            {% endif %}
+            <a href="/progress" class="btn btn-primary">📊 View Progress</a>
+        </div>
+    {% else %}
+        <form id="startForm" onsubmit="startEnrichment(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="limit">Limit (optional)</label>
+                    <input type="number" id="limit" name="limit" placeholder="All practices">
+                </div>
+                <div class="form-group">
+                    <label for="max_workers">Max Workers</label>
+                    <input type="number" id="max_workers" name="max_workers" value="6" min="1" max="20">
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button type="submit" class="btn btn-primary">🚀 Start Enrichment</button>
+                <button type="button" class="btn btn-secondary" onclick="testSmallBatch()">🧪 Test (10 practices)</button>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<!-- Recent Runs -->
+<div class="recent-runs">
+    <h2 class="card-header">Recent Runs</h2>
+
+    {% if recent_runs %}
+        {% for run in recent_runs %}
+            <div class="run-item">
+                <div class="run-header">
+                    <strong>Run #{{ run.id }}</strong>
+                    <span class="badge badge-{{ 'success' if run.status == 'completed' else 'warning' if run.status == 'running' else 'danger' }}">
+                        {{ run.status }}
+                    </span>
+                </div>
+                <div class="run-stats">
+                    <span>✅ {{ run.successful }} succeeded</span>
+                    <span>❌ {{ run.failed }} failed</span>
+                    <span>💰 {{ "$%.2f"|format(run.total_cost|float if run.total_cost else 0) }}</span>
+                    <span>🕒 {{ run.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted text-center">No enrichment runs yet. Start your first run above!</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function startEnrichment(event) {
+        event.preventDefault();
+
+        const limit = document.getElementById('limit').value;
+        const max_workers = document.getElementById('max_workers').value;
+
+        try {
+            const response = await fetch('/api/enrichment/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    limit: limit ? parseInt(limit) : null,
+                    max_workers: parseInt(max_workers)
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Enrichment started successfully!', 'success');
+                setTimeout(() => window.location.href = '/progress', 1000);
+            } else {
+                showNotification(data.error || 'Failed to start enrichment', 'error');
+            }
+        } catch (error) {
+            showNotification('Error starting enrichment: ' + error.message, 'error');
+        }
+    }
+
+    async function pauseEnrichment() {
+        try {
+            const response = await fetch('/api/enrichment/pause', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Enrichment paused', 'info');
+                location.reload();
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            showNotification('Error pausing enrichment: ' + error.message, 'error');
+        }
+    }
+
+    async function resumeEnrichment() {
+        try {
+            const response = await fetch('/api/enrichment/resume', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Enrichment resumed', 'success');
+                setTimeout(() => window.location.href = '/progress', 1000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            showNotification('Error resuming enrichment: ' + error.message, 'error');
+        }
+    }
+
+    async function stopEnrichment() {
+        if (!confirm('Are you sure you want to stop enrichment? Progress will be saved.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/enrichment/stop', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Enrichment stopped', 'info');
+                location.reload();
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            showNotification('Error stopping enrichment: ' + error.message, 'error');
+        }
+    }
+
+    function testSmallBatch() {
+        document.getElementById('limit').value = '10';
+        document.getElementById('startForm').dispatchEvent(new Event('submit'));
+    }
+</script>
+{% endblock %}

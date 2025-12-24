@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}Practices - DPC Enrichment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .filter-group {
+        flex: 1;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--gray-700);
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 8px;
+        font-size: 0.95rem;
+    }
+
+    .practices-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        background: var(--gray-50);
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    tr:hover {
+        background: var(--gray-50);
+        cursor: pointer;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .practice-name {
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+
+    .practice-url {
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+    }
+
+    .practice-url:hover {
+        text-decoration: underline;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        text-decoration: none;
+        color: var(--gray-700);
+        font-weight: 500;
+    }
+
+    .pagination a:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .pagination .active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 2px solid var(--gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+    .modal-close {
+        background: var(--gray-200);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.25rem;
+        color: var(--gray-700);
+    }
+
+    .modal-close:hover {
+        background: var(--danger);
+        color: white;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .detail-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+    }
+
+    .detail-value {
+        color: var(--gray-900);
+    }
+
+    .json-viewer-full {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 500px;
+        overflow: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">All Practices</h1>
+    <p class="page-subtitle">Browse, search, and export practice data</p>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+    <div class="filter-group">
+        <label for="searchInput">Search</label>
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by name or ID..."
+            value="{{ request.args.get('search', '') }}"
+        >
+    </div>
+
+    <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+            <option value="skipped" {% if status_filter == 'skipped' %}selected{% endif %}>Skipped</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label>Actions</label>
+        <div class="export-buttons">
+            <button class="btn btn-secondary" onclick="applyFilters()">🔍 Search</button>
+            <button class="btn btn-success" onclick="exportCSV()">📥 CSV</button>
+            <button class="btn btn-primary" onclick="exportJSON()">📥 JSON</button>
+        </div>
+    </div>
+</div>
+
+<!-- Practices Table -->
+<div class="practices-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Practice</th>
+                <th>Website</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Enriched</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for practice in practices.items %}
+                <tr onclick="showPracticeDetail('{{ practice.id }}')">
+                    <td>
+                        <div class="practice-name">{{ practice.practice_name or practice.practice_id }}</div>
+                        <small class="text-muted">ID: {{ practice.practice_id }}</small>
+                    </td>
+                    <td>
+                        {% if practice.website_url %}
+                            <a href="{{ practice.website_url }}" target="_blank" class="practice-url" onclick="event.stopPropagation()">
+                                {{ practice.website_url[:50] }}...
+                            </a>
+                        {% else %}
+                            <span class="text-muted">No website</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if practice.address_city %}
+                            {{ practice.address_city }}, {{ practice.address_state }}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if practice.enrichment_status == 'completed' else 'warning' if practice.enrichment_status == 'pending' else 'danger' }}">
+                            {{ practice.enrichment_status }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ practice.enriched_at.strftime('%Y-%m-%d %H:%M') if practice.enriched_at else '-' }}
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--gray-600);">
+                        No practices found. Try adjusting your filters.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if practices.pages > 1 %}
+    <div class="pagination">
+        {% if practices.has_prev %}
+            <a href="?page={{ practices.prev_num }}&status={{ status_filter }}">← Previous</a>
+        {% endif %}
+
+        {% for page_num in practices.iter_pages(left_edge=2, right_edge=2, left_current=1, right_current=1) %}
+            {% if page_num %}
+                <a href="?page={{ page_num }}&status={{ status_filter }}"
+                   class="{% if page_num == practices.page %}active{% endif %}">
+                    {{ page_num }}
+                </a>
+            {% else %}
+                <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if practices.has_next %}
+            <a href="?page={{ practices.next_num }}&status={{ status_filter }}">Next →</a>
+        {% endif %}
+    </div>
+{% endif %}
+
+<!-- Practice Detail Modal -->
+<div class="modal" id="practiceModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">Practice Details</h2>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            Loading...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value;
+        const status = document.getElementById('statusFilter').value;
+
+        let url = '/practices?';
+        if (search) url += `search=${encodeURIComponent(search)}&`;
+        if (status !== 'all') url += `status=${status}&`;
+
+        window.location.href = url;
+    }
+
+    function exportCSV() {
+        const status = document.getElementById('statusFilter').value;
+        const search = document.getElementById('searchInput').value;
+
+        let url = '/api/export/csv?';
+        if (status !== 'all') url += `status=${status}&`;
+        if (search) url += `search=${encodeURIComponent(search)}`;
+
+        window.location.href = url;
+    }
+
+    function exportJSON() {
+        const status = document.getElementById('statusFilter').value;
+        const search = document.getElementById('searchInput').value;
+
+        let url = '/api/export/json?';
+        if (status !== 'all') url += `status=${status}&`;
+        if (search) url += `search=${encodeURIComponent(search)}`;
+
+        window.location.href = url;
+    }
+
+    async function showPracticeDetail(id) {
+        const modal = document.getElementById('practiceModal');
+        const modalBody = document.getElementById('modalBody');
+        const modalTitle = document.getElementById('modalTitle');
+
+        modal.classList.add('active');
+        modalBody.innerHTML = 'Loading...';
+
+        try {
+            const response = await fetch(`/api/practices/${id}`);
+            const practice = await response.json();
+
+            modalTitle.textContent = practice.practice_name || practice.practice_id;
+
+            const fieldCount = practice.data ? Object.keys(practice.data).filter(k => !k.startsWith('_')).length : 0;
+
+            modalBody.innerHTML = `
+                <div class="detail-section">
+                    <div class="detail-label">Practice ID</div>
+                    <div class="detail-value">${practice.practice_id}</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">Website</div>
+                    <div class="detail-value">
+                        <a href="${practice.website_url}" target="_blank">${practice.website_url}</a>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">Address</div>
+                    <div class="detail-value">
+                        ${practice.address.street || ''}<br>
+                        ${practice.address.city || ''}, ${practice.address.state || ''} ${practice.address.zip || ''}
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">Phone</div>
+                    <div class="detail-value">${practice.phone || 'N/A'}</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">Status</div>
+                    <div class="detail-value">
+                        <span class="badge badge-${practice.enrichment_status === 'completed' ? 'success' : 'warning'}">
+                            ${practice.enrichment_status}
+                        </span>
+                    </div>
+                </div>
+
+                ${practice.enriched_at ? `
+                    <div class="detail-section">
+                        <div class="detail-label">Enriched At</div>
+                        <div class="detail-value">${formatDate(practice.enriched_at)}</div>
+                    </div>
+                ` : ''}
+
+                ${practice.data ? `
+                    <div class="detail-section">
+                        <div class="detail-label">Enriched Data (${fieldCount} fields)</div>
+                        <div class="json-viewer-full">${JSON.stringify(practice.data, null, 2)}</div>
+                    </div>
+                ` : ''}
+            `;
+        } catch (error) {
+            modalBody.innerHTML = `<p class="text-danger">Error loading practice details: ${error.message}</p>`;
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('practiceModal').classList.remove('active');
+    }
+
+    // Close modal on background click
+    document.getElementById('practiceModal').addEventListener('click', (e) => {
+        if (e.target.id === 'practiceModal') {
+            closeModal();
+        }
+    });
+
+    // Search on Enter key
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+</script>
+{% endblock %}

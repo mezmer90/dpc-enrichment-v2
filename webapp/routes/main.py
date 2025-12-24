@@ -2,16 +2,42 @@
 Main web routes - Dashboard and UI pages
 """
 
-from flask import Blueprint, render_template, redirect, url_for
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash
 from webapp.models import EnrichmentRun, Practice, APIStatus
-from app import db
+from app import db, APP_PASSWORD
 
 bp = Blueprint('main', __name__)
 
 
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Simple password login"""
+
+    # If already authenticated, redirect to dashboard
+    if session.get('authenticated'):
+        return redirect(url_for('main.index'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+
+        if password == APP_PASSWORD:
+            session['authenticated'] = True
+            session.permanent = True  # Keep session across browser restarts
+            return redirect(url_for('main.index'))
+        else:
+            flash('Invalid password', 'error')
+
+    return render_template('login.html')
+
+
+@bp.route('/logout')
+def logout():
+    """Logout"""
+    session.pop('authenticated', None)
+    return redirect(url_for('main.login'))
+
+
 @bp.route('/')
-@login_required
 def index():
     """Dashboard - main page"""
 
@@ -47,7 +73,6 @@ def index():
 
 
 @bp.route('/progress')
-@login_required
 def progress():
     """Real-time progress monitor"""
 
@@ -59,7 +84,6 @@ def progress():
 
 
 @bp.route('/practices')
-@login_required
 def practices():
     """List all practices"""
 
@@ -83,7 +107,6 @@ def practices():
 
 
 @bp.route('/runs')
-@login_required
 def runs():
     """Enrichment run history"""
 
@@ -97,7 +120,6 @@ def runs():
 
 
 @bp.route('/settings')
-@login_required
 def settings():
     """API and system settings"""
 

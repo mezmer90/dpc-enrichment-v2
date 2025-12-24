@@ -1,0 +1,558 @@
+{% extends "base.html" %}
+
+{% block title %}Progress - DPC Enrichment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .progress-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+        .progress-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .progress-main {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .progress-bar-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 40px;
+        background: var(--gray-200);
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        margin: 1rem 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--success) 0%, var(--primary) 100%);
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+    }
+
+    .stats-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .stat-mini {
+        text-align: center;
+        padding: 0.75rem;
+        background: var(--gray-50);
+        border-radius: 8px;
+    }
+
+    .stat-mini-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-mini-label {
+        font-size: 0.75rem;
+        color: var(--gray-600);
+        text-transform: uppercase;
+    }
+
+    .live-feed {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .feed-item {
+        padding: 1rem;
+        border-left: 4px solid var(--gray-300);
+        margin-bottom: 1rem;
+        border-radius: 4px;
+        background: var(--gray-50);
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .feed-item.success {
+        border-left-color: var(--success);
+        background: #f0fdf4;
+    }
+
+    .feed-item.failed {
+        border-left-color: var(--danger);
+        background: #fef2f2;
+    }
+
+    .feed-item.skipped {
+        border-left-color: var(--warning);
+        background: #fffbeb;
+    }
+
+    .feed-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .feed-title {
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+
+    .feed-meta {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+    }
+
+    .data-preview {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 1rem;
+    }
+
+    .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .json-viewer {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 500px;
+        overflow: auto;
+    }
+
+    .json-key {
+        color: #9cdcfe;
+    }
+
+    .json-string {
+        color: #ce9178;
+    }
+
+    .json-number {
+        color: #b5cea8;
+    }
+
+    .json-boolean {
+        color: #569cd6;
+    }
+
+    .quality-score {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .quality-high {
+        background: #d1fae5;
+        color: var(--success);
+    }
+
+    .quality-medium {
+        background: #fef3c7;
+        color: var(--warning);
+    }
+
+    .quality-low {
+        background: #fee2e2;
+        color: var(--danger);
+    }
+
+    .connection-status {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .connection-status.connected {
+        background: #d1fae5;
+        color: var(--success);
+    }
+
+    .connection-status.disconnected {
+        background: #fee2e2;
+        color: var(--danger);
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 2rem;
+        color: var(--gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Real-Time Progress</h1>
+    <p class="page-subtitle">Monitor enrichment progress and data quality</p>
+</div>
+
+<div class="connection-status disconnected" id="connectionStatus">
+    🔴 Connecting to live stream...
+</div>
+
+{% if current_run %}
+    <div class="progress-container">
+        <!-- Main Progress Area -->
+        <div class="progress-main">
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                <h2 class="card-header">Run #{{ current_run.id }} Progress</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%;">
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+
+                <div class="stats-mini-grid">
+                    <div class="stat-mini">
+                        <div class="stat-mini-value" id="statTotal">0</div>
+                        <div class="stat-mini-label">Total</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-value" style="color: var(--success);" id="statCompleted">0</div>
+                        <div class="stat-mini-label">Completed</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-value" style="color: var(--danger);" id="statFailed">0</div>
+                        <div class="stat-mini-label">Failed</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-value" id="statCost">$0.00</div>
+                        <div class="stat-mini-label">Cost</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Feed -->
+            <div class="live-feed">
+                <h2 class="card-header">Live Activity Feed</h2>
+                <div id="liveFeed">
+                    <div class="no-data">Waiting for updates...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Preview Sidebar -->
+        <div class="data-preview">
+            <div class="preview-header">
+                <h2 class="card-header" style="margin: 0;">Latest Data Preview</h2>
+                <span class="quality-score quality-medium" id="qualityScore">N/A</span>
+            </div>
+            <div id="dataPreview" class="no-data">No data yet</div>
+        </div>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="no-data">
+            <p>No enrichment currently running.</p>
+            <a href="/" class="btn btn-primary mt-2">Go to Dashboard</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let eventSource = null;
+    let stats = { total: 0, completed: 0, failed: 0, skipped: 0, cost: 0 };
+
+    function connectToStream() {
+        eventSource = new EventSource('/api/enrichment/progress/stream');
+
+        eventSource.onopen = () => {
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+            document.getElementById('connectionStatus').innerHTML = '🟢 Connected to live stream';
+        };
+
+        eventSource.onerror = () => {
+            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            document.getElementById('connectionStatus').innerHTML = '🔴 Disconnected - Reconnecting...';
+        };
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleProgressUpdate(data);
+            } catch (error) {
+                console.error('Error parsing SSE message:', error);
+            }
+        };
+    }
+
+    function handleProgressUpdate(update) {
+        const { event, data } = update;
+
+        switch (event) {
+            case 'connected':
+                console.log('Connected to progress stream');
+                break;
+
+            case 'started':
+                addFeedItem('Enrichment started', 'info', data);
+                break;
+
+            case 'practice_completed':
+                handlePracticeCompleted(data);
+                break;
+
+            case 'practice_failed':
+                handlePracticeFailed(data);
+                break;
+
+            case 'practice_skipped':
+                handlePracticeSkipped(data);
+                break;
+
+            case 'stats_update':
+                updateStats(data);
+                break;
+
+            case 'completed':
+                addFeedItem('Enrichment completed!', 'success', data);
+                break;
+
+            case 'error':
+                addFeedItem(`Error: ${data.error}`, 'failed', data);
+                break;
+        }
+    }
+
+    function handlePracticeCompleted(data) {
+        stats.completed++;
+        stats.cost += parseFloat(data.cost || 0);
+
+        addFeedItem(
+            `✅ ${data.practice_name}`,
+            'success',
+            {
+                fields: data.field_count,
+                cost: data.cost,
+                method: data.scraper_method,
+                pages: data.pages_crawled
+            }
+        );
+
+        updateProgressBar();
+
+        // Show data preview
+        if (data.data) {
+            showDataPreview(data);
+        }
+    }
+
+    function handlePracticeFailed(data) {
+        stats.failed++;
+
+        addFeedItem(
+            `❌ ${data.practice_name}`,
+            'failed',
+            { error: data.error }
+        );
+
+        updateProgressBar();
+    }
+
+    function handlePracticeSkipped(data) {
+        stats.skipped++;
+
+        addFeedItem(
+            `⏭️ ${data.practice_name} (skipped)`,
+            'skipped',
+            { reason: data.error || 'Unknown' }
+        );
+
+        updateProgressBar();
+    }
+
+    function addFeedItem(title, type, meta) {
+        const feed = document.getElementById('liveFeed');
+
+        // Remove "no data" message
+        if (feed.querySelector('.no-data')) {
+            feed.innerHTML = '';
+        }
+
+        const item = document.createElement('div');
+        item.className = `feed-item ${type}`;
+
+        let metaHtml = '';
+        if (meta) {
+            if (meta.fields) metaHtml += `📊 ${meta.fields} fields | `;
+            if (meta.cost) metaHtml += `💰 $${meta.cost.toFixed(4)} | `;
+            if (meta.pages) metaHtml += `📄 ${meta.pages} pages | `;
+            if (meta.method) metaHtml += `🔧 ${meta.method} | `;
+            if (meta.error) metaHtml += `⚠️ ${meta.error} | `;
+            if (meta.reason) metaHtml += `ℹ️ ${meta.reason} | `;
+        }
+        metaHtml += new Date().toLocaleTimeString();
+
+        item.innerHTML = `
+            <div class="feed-header">
+                <div class="feed-title">${title}</div>
+            </div>
+            <div class="feed-meta">${metaHtml}</div>
+        `;
+
+        // Add to top of feed
+        feed.insertBefore(item, feed.firstChild);
+
+        // Keep only last 50 items
+        while (feed.children.length > 50) {
+            feed.removeChild(feed.lastChild);
+        }
+    }
+
+    function updateProgressBar() {
+        const total = stats.completed + stats.failed + stats.skipped;
+        const percent = stats.total > 0 ? (total / stats.total * 100) : 0;
+
+        document.getElementById('progressBar').style.width = `${percent}%`;
+        document.getElementById('progressText').textContent = `${percent.toFixed(1)}%`;
+
+        document.getElementById('statTotal').textContent = stats.total;
+        document.getElementById('statCompleted').textContent = stats.completed;
+        document.getElementById('statFailed').textContent = stats.failed;
+        document.getElementById('statCost').textContent = `$${stats.cost.toFixed(2)}`;
+    }
+
+    function updateStats(data) {
+        if (data.total) stats.total = data.total;
+        if (data.completed !== undefined) stats.completed = data.completed;
+        if (data.failed !== undefined) stats.failed = data.failed;
+        if (data.skipped !== undefined) stats.skipped = data.skipped;
+        if (data.cost !== undefined) stats.cost = data.cost;
+
+        updateProgressBar();
+    }
+
+    function showDataPreview(data) {
+        const preview = document.getElementById('dataPreview');
+        const practiceData = data.data || {};
+
+        // Calculate quality score
+        const fieldCount = data.field_count || 0;
+        const qualityScore = fieldCount > 50 ? 'high' : fieldCount > 30 ? 'medium' : 'low';
+        const qualityText = fieldCount > 50 ? 'High Quality' : fieldCount > 30 ? 'Medium Quality' : 'Low Quality';
+
+        document.getElementById('qualityScore').className = `quality-score quality-${qualityScore}`;
+        document.getElementById('qualityScore').textContent = qualityText;
+
+        // Format JSON for display
+        preview.innerHTML = `
+            <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--gray-600);">
+                <strong>${data.practice_name}</strong><br>
+                ${fieldCount} fields extracted
+            </div>
+            <div class="json-viewer">${formatJSON(practiceData)}</div>
+        `;
+    }
+
+    function formatJSON(obj, indent = 0) {
+        const spaces = '  '.repeat(indent);
+        let html = '';
+
+        if (typeof obj === 'object' && obj !== null) {
+            html += '{\n';
+            const keys = Object.keys(obj);
+            keys.forEach((key, index) => {
+                if (key.startsWith('_')) return; // Skip metadata
+
+                html += `${spaces}  <span class="json-key">"${key}"</span>: `;
+
+                const value = obj[key];
+                if (typeof value === 'string') {
+                    html += `<span class="json-string">"${value}"</span>`;
+                } else if (typeof value === 'number') {
+                    html += `<span class="json-number">${value}</span>`;
+                } else if (typeof value === 'boolean') {
+                    html += `<span class="json-boolean">${value}</span>`;
+                } else if (Array.isArray(value)) {
+                    html += `[${value.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ')}]`;
+                } else if (value === null) {
+                    html += 'null';
+                } else {
+                    html += formatJSON(value, indent + 1);
+                }
+
+                html += index < keys.length - 1 ? ',\n' : '\n';
+            });
+            html += `${spaces}}`;
+        }
+
+        return html;
+    }
+
+    // Initialize on page load
+    {% if current_run %}
+        connectToStream();
+
+        // Load initial stats from server
+        fetch('/api/enrichment/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.current_run) {
+                    stats.total = data.current_run.total_practices || 0;
+                    stats.completed = data.current_run.successful || 0;
+                    stats.failed = data.current_run.failed || 0;
+                    stats.cost = parseFloat(data.current_run.total_cost || 0);
+                    updateProgressBar();
+                }
+            });
+    {% endif %}
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (eventSource) {
+            eventSource.close();
+        }
+    });
+</script>
+{% endblock %}
