@@ -112,8 +112,18 @@ class DataStorage:
             with open(input_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            practices = data.get('practices', [])
-            metadata = data.get('metadata', {})
+            # Handle both dict format (with metadata/practices keys) and legacy list format
+            if isinstance(data, list):
+                # Legacy format: file contains direct list of practices
+                practices = data
+                metadata = {}
+                logger.warning(f"Loaded legacy format (bare list) from {input_file.name}")
+            elif isinstance(data, dict):
+                # Modern format: file contains dict with metadata and practices
+                practices = data.get('practices', [])
+                metadata = data.get('metadata', {})
+            else:
+                raise ValueError(f"Invalid data format in {input_file.name}: expected list or dict, got {type(data)}")
 
             logger.info(f"Loaded {len(practices)} practices from {input_file.name}")
 
