@@ -929,6 +929,27 @@ def list_runs():
         }), 500
 
 
+@bp.route('/version', methods=['GET'])
+def get_version():
+    """Get deployed version info"""
+    import os
+    commit_file = os.path.join(os.path.dirname(__file__), '../..', 'git_commit.txt')
+
+    try:
+        if os.path.exists(commit_file):
+            with open(commit_file, 'r') as f:
+                commit = f.read().strip()
+        else:
+            commit = 'unknown (file not found)'
+    except Exception as e:
+        commit = f'error: {str(e)}'
+
+    return jsonify({
+        'commit': commit,
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+
 @bp.route('/export/enriched', methods=['GET'])
 def export_enriched_only():
     """Export only enriched practice data (AI-extracted fields)"""

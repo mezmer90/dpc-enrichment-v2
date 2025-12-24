@@ -29,7 +29,9 @@
       "Bash(do echo \"=== Attempt $i ===\")",
       "Bash(railway restart:*)",
       "Bash(railway --help:*)",
-      "Bash(railway redeploy:*)"
+      "Bash(railway redeploy:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(cat:*)"
     ]
   }
 }
