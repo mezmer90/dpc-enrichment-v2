@@ -2,54 +2,185 @@
 
 {% block title %}Settings - DPC Enrichment{% endblock %}
 
+{% block extra_styles %}
+<style>
+    /* Enhanced spacing and layout */
+    .page-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2.5rem;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 0.75rem;
+    }
+
+    .page-subtitle {
+        color: var(--gray-600);
+        font-size: 1.125rem;
+    }
+
+    .card {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        margin-bottom: 2rem;
+    }
+
+    .card-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-header::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        border-radius: 2px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        background: var(--gray-50);
+        padding: 1.25rem 1.5rem;
+        text-align: left;
+        font-weight: 700;
+        color: var(--gray-700);
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--gray-100);
+        font-size: 0.9375rem;
+    }
+
+    tbody tr {
+        transition: all 0.2s;
+    }
+
+    tbody tr:hover {
+        background: var(--gray-50);
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .text-muted {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    .about-content {
+        color: var(--gray-700);
+        line-height: 1.8;
+        font-size: 1rem;
+    }
+
+    .about-content strong {
+        color: var(--gray-900);
+        font-weight: 700;
+    }
+
+    .about-content ul {
+        margin-left: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .about-content li {
+        margin-bottom: 0.5rem;
+        color: var(--gray-600);
+    }
+
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1.5rem;
+        }
+
+        table {
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Settings</h1>
-    <p class="page-subtitle">API status and system configuration</p>
-</div>
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">API status and system configuration</p>
+    </div>
 
-<div class="card">
-    <h2 class="card-header">API Status</h2>
+    <!-- API Status -->
+    <div class="card">
+        <h2 class="card-header">API Status</h2>
 
-    {% if api_statuses %}
-        <table>
-            <thead>
-                <tr>
-                    <th>API</th>
-                    <th>Status</th>
-                    <th>Last Checked</th>
-                    <th>Last Error</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for api in api_statuses %}
+        {% if api_statuses %}
+            <table>
+                <thead>
                     <tr>
-                        <td><strong>{{ api.api_name }}</strong></td>
-                        <td>
-                            <span class="badge badge-{{ 'success' if api.is_healthy else 'danger' }}">
-                                {{ '✓ Healthy' if api.is_healthy else '✗ Error' }}
-                            </span>
-                        </td>
-                        <td>{{ api.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                        <td>
-                            {% if api.last_error %}
-                                <small class="text-muted">{{ api.last_error[:100] }}</small>
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
+                        <th>API</th>
+                        <th>Status</th>
+                        <th>Last Checked</th>
+                        <th>Last Error</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="text-muted" style="padding: 1rem;">No API status available yet.</p>
-    {% endif %}
-</div>
+                </thead>
+                <tbody>
+                    {% for api in api_statuses %}
+                        <tr>
+                            <td><strong>{{ api.api_name }}</strong></td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if api.is_healthy else 'danger' }}">
+                                    {{ '✓ Healthy' if api.is_healthy else '✗ Error' }}
+                                </span>
+                            </td>
+                            <td>{{ api.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>
+                                {% if api.last_error %}
+                                    <small class="text-muted">{{ api.last_error[:100] }}</small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">No API status available yet.</p>
+        {% endif %}
+    </div>
 
-<div class="card" style="margin-top: 1.5rem;">
-    <h2 class="card-header">Environment Configuration</h2>
-    <div style="padding: 0;">
+    <!-- Environment Configuration -->
+    <div class="card">
+        <h2 class="card-header">Environment Configuration</h2>
         <table>
             <thead>
                 <tr>
@@ -59,45 +190,48 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>OpenRouter API Key</td>
+                    <td><strong>OpenRouter API Key</strong></td>
                     <td>
-                        <span class="badge badge-success">Configured</span>
+                        <span class="badge badge-success">✓ Configured</span>
                     </td>
                 </tr>
                 <tr>
-                    <td>ScraperAPI Key</td>
+                    <td><strong>ScraperAPI Key</strong></td>
                     <td>
-                        <span class="badge badge-success">Configured</span>
+                        <span class="badge badge-success">✓ Configured</span>
                     </td>
                 </tr>
                 <tr>
-                    <td>Max Workers</td>
+                    <td><strong>Max Workers</strong></td>
                     <td>6</td>
                 </tr>
                 <tr>
-                    <td>Checkpoint Interval</td>
+                    <td><strong>Checkpoint Interval</strong></td>
                     <td>1 practice</td>
                 </tr>
             </tbody>
         </table>
     </div>
-</div>
 
-<div class="card" style="margin-top: 1.5rem;">
-    <h2 class="card-header">About</h2>
-    <p style="color: var(--gray-600);">
-        <strong>DPC Enrichment System V2</strong><br>
-        Automated enrichment of Direct Primary Care practice data using AI-powered web scraping.<br><br>
+    <!-- About -->
+    <div class="card">
+        <h2 class="card-header">About</h2>
+        <div class="about-content">
+            <strong>DPC Enrichment System V2</strong><br>
+            Automated enrichment of Direct Primary Care practice data using AI-powered web scraping.
 
-        <strong>Features:</strong>
-        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
-            <li>Multi-method web scraping with fallbacks</li>
-            <li>AI-powered data extraction (Gemini 2.5 Flash)</li>
-            <li>Real-time progress monitoring</li>
-            <li>Circuit breaker pattern for fault tolerance</li>
-            <li>Incremental saving with checkpoints</li>
-            <li>CSV/JSON export capabilities</li>
-        </ul>
-    </p>
+            <p style="margin-top: 1.5rem;"><strong>Features:</strong></p>
+            <ul>
+                <li>Multi-method web scraping with fallbacks</li>
+                <li>AI-powered data extraction (Gemini 2.5 Flash)</li>
+                <li>Real-time progress monitoring via Server-Sent Events</li>
+                <li>Circuit breaker pattern for fault tolerance</li>
+                <li>Incremental saving with checkpoints</li>
+                <li>CSV/JSON export capabilities</li>
+                <li>Comprehensive error tracking and recovery</li>
+                <li>Pause/resume functionality for enrichment runs</li>
+            </ul>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -2,78 +2,202 @@
 
 {% block title %}Runs - DPC Enrichment{% endblock %}
 
+{% block extra_styles %}
+<style>
+    /* Enhanced spacing and layout */
+    .page-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 2.5rem;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 0.75rem;
+    }
+
+    .page-subtitle {
+        color: var(--gray-600);
+        font-size: 1.125rem;
+    }
+
+    .card {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        background: var(--gray-50);
+        padding: 1.25rem 1.5rem;
+        text-align: left;
+        font-weight: 700;
+        color: var(--gray-700);
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--gray-100);
+        font-size: 0.9375rem;
+    }
+
+    tbody tr {
+        transition: all 0.2s;
+    }
+
+    tbody tr:hover {
+        background: var(--gray-50);
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .text-muted {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 2rem;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.75rem 1.25rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 10px;
+        text-decoration: none;
+        color: var(--gray-700);
+        font-weight: 600;
+        transition: all 0.2s;
+        background: white;
+    }
+
+    .pagination a:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .pagination .active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1.5rem;
+        }
+
+        table {
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Enrichment Runs</h1>
-    <p class="page-subtitle">History of all enrichment runs</p>
-</div>
-
-<div class="card">
-    <table>
-        <thead>
-            <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Cost</th>
-                <th>Started</th>
-                <th>Duration</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for run in runs.items %}
-                <tr>
-                    <td><strong>#{{ run.id }}</strong></td>
-                    <td>
-                        <span class="badge badge-{{ 'success' if run.status == 'completed' else 'warning' if run.status == 'running' else 'danger' }}">
-                            {{ run.status }}
-                        </span>
-                    </td>
-                    <td>
-                        {{ run.successful }}/{{ run.total_practices }}
-                        <small class="text-muted">({{ "%.1f"|format(run.success_rate) }}%)</small>
-                    </td>
-                    <td>{{ "$%.2f"|format(run.total_cost|float if run.total_cost else 0) }}</td>
-                    <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
-                    <td>
-                        {% if run.started_at and run.completed_at %}
-                            {{ ((run.completed_at - run.started_at).total_seconds() / 60)|int }} min
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                </tr>
-            {% else %}
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 2rem;">
-                        No runs yet. Start your first enrichment from the dashboard.
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Pagination -->
-{% if runs.pages > 1 %}
-    <div class="pagination" style="margin-top: 1.5rem;">
-        {% if runs.has_prev %}
-            <a href="?page={{ runs.prev_num }}">← Previous</a>
-        {% endif %}
-
-        {% for page_num in runs.iter_pages(left_edge=2, right_edge=2) %}
-            {% if page_num %}
-                <a href="?page={{ page_num }}" class="{% if page_num == runs.page %}active{% endif %}">
-                    {{ page_num }}
-                </a>
-            {% else %}
-                <span>...</span>
-            {% endif %}
-        {% endfor %}
-
-        {% if runs.has_next %}
-            <a href="?page={{ runs.next_num }}">Next →</a>
-        {% endif %}
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">Enrichment Runs</h1>
+        <p class="page-subtitle">History of all enrichment runs</p>
     </div>
-{% endif %}
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Cost</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs.items %}
+                    <tr>
+                        <td><strong>#{{ run.id }}</strong></td>
+                        <td>
+                            <span class="badge badge-{{ 'success' if run.status == 'completed' else 'warning' if run.status == 'running' else 'danger' }}">
+                                {{ run.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ run.successful }}/{{ run.total_practices }}
+                            <small class="text-muted">({{ "%.1f"|format(run.success_rate) }}%)</small>
+                        </td>
+                        <td><strong>{{ "$%.2f"|format(run.total_cost|float if run.total_cost else 0) }}</strong></td>
+                        <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
+                        <td>
+                            {% if run.started_at and run.completed_at %}
+                                {{ ((run.completed_at - run.started_at).total_seconds() / 60)|int }} min
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--gray-500);">
+                            No runs yet. Start your first enrichment from the dashboard.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if runs.pages > 1 %}
+        <div class="pagination">
+            {% if runs.has_prev %}
+                <a href="?page={{ runs.prev_num }}">← Previous</a>
+            {% endif %}
+
+            {% for page_num in runs.iter_pages(left_edge=2, right_edge=2) %}
+                {% if page_num %}
+                    <a href="?page={{ page_num }}" class="{% if page_num == runs.page %}active{% endif %}">
+                        {{ page_num }}
+                    </a>
+                {% else %}
+                    <span>...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if runs.has_next %}
+                <a href="?page={{ runs.next_num }}">Next →</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
 {% endblock %}

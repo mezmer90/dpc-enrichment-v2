@@ -4,39 +4,91 @@
 
 {% block extra_styles %}
 <style>
+    /* Enhanced spacing and layout */
+    .page-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 2.5rem;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 0.75rem;
+    }
+
+    .page-subtitle {
+        color: var(--gray-600);
+        font-size: 1.125rem;
+    }
+
     .progress-container {
         display: grid;
         grid-template-columns: 2fr 1fr;
-        gap: 1.5rem;
+        gap: 2rem;
     }
 
     @media (max-width: 1200px) {
         .progress-container {
             grid-template-columns: 1fr;
         }
+
+        .page-container {
+            padding: 1.5rem;
+        }
     }
 
     .progress-main {
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 2rem;
     }
 
     .progress-bar-container {
         background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .progress-bar-container:hover {
+        box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 8px 12px -4px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-header::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        border-radius: 2px;
     }
 
     .progress-bar {
         width: 100%;
-        height: 40px;
+        height: 48px;
         background: var(--gray-200);
-        border-radius: 20px;
+        border-radius: 24px;
         overflow: hidden;
         position: relative;
-        margin: 1rem 0;
+        margin: 1.5rem 0;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
     }
 
     .progress-fill {
@@ -47,51 +99,89 @@
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.125rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
     .stats-mini-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        margin-top: 1rem;
+        gap: 1.25rem;
+        margin-top: 1.5rem;
     }
 
     .stat-mini {
         text-align: center;
-        padding: 0.75rem;
+        padding: 1.25rem;
         background: var(--gray-50);
-        border-radius: 8px;
+        border-radius: 12px;
+        border: 1px solid var(--gray-100);
+        transition: all 0.2s;
+    }
+
+    .stat-mini:hover {
+        background: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
     }
 
     .stat-mini-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
+        font-size: 1.875rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
     }
 
     .stat-mini-label {
-        font-size: 0.75rem;
-        color: var(--gray-600);
+        font-size: 0.8125rem;
+        color: var(--gray-500);
         text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.05em;
     }
 
     .live-feed {
         background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        max-height: 600px;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        max-height: 700px;
         overflow-y: auto;
     }
 
-    .feed-item {
-        padding: 1rem;
-        border-left: 4px solid var(--gray-300);
-        margin-bottom: 1rem;
+    .live-feed::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .live-feed::-webkit-scrollbar-track {
+        background: var(--gray-100);
         border-radius: 4px;
+    }
+
+    .live-feed::-webkit-scrollbar-thumb {
+        background: var(--gray-400);
+        border-radius: 4px;
+    }
+
+    .live-feed::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-500);
+    }
+
+    .feed-item {
+        padding: 1.25rem;
+        border-left: 4px solid var(--gray-300);
+        margin-bottom: 1.25rem;
+        border-radius: 8px;
         background: var(--gray-50);
         animation: slideIn 0.3s ease;
+        transition: all 0.2s;
+    }
+
+    .feed-item:hover {
+        background: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateX(4px);
     }
 
     @keyframes slideIn {
@@ -124,44 +214,69 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.625rem;
     }
 
     .feed-title {
-        font-weight: 600;
+        font-weight: 700;
         color: var(--gray-900);
+        font-size: 1rem;
     }
 
     .feed-meta {
         font-size: 0.875rem;
         color: var(--gray-600);
+        font-weight: 500;
     }
 
     .data-preview {
         background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
         position: sticky;
-        top: 1rem;
+        top: 1.5rem;
+        max-height: calc(100vh - 3rem);
+        overflow-y: auto;
     }
 
     .preview-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
 
     .json-viewer {
         background: #1e1e1e;
         color: #d4d4d4;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1.5rem;
+        border-radius: 10px;
         font-family: 'Courier New', monospace;
-        font-size: 0.85rem;
-        max-height: 500px;
+        font-size: 0.875rem;
+        max-height: 550px;
         overflow: auto;
+        border: 1px solid #2d2d2d;
+    }
+
+    .json-viewer::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .json-viewer::-webkit-scrollbar-track {
+        background: #252525;
+        border-radius: 4px;
+    }
+
+    .json-viewer::-webkit-scrollbar-thumb {
+        background: #404040;
+        border-radius: 4px;
+    }
+
+    .json-viewer::-webkit-scrollbar-thumb:hover {
+        background: #505050;
     }
 
     .json-key {
@@ -182,10 +297,11 @@
 
     .quality-score {
         display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 14px;
+        font-weight: 700;
         font-size: 0.875rem;
+        letter-spacing: 0.025em;
     }
 
     .quality-high {
@@ -204,41 +320,65 @@
     }
 
     .connection-status {
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border: 1px solid;
     }
 
     .connection-status.connected {
         background: #d1fae5;
         color: var(--success);
+        border-color: var(--success);
     }
 
     .connection-status.disconnected {
         background: #fee2e2;
         color: var(--danger);
+        border-color: var(--danger);
     }
 
     .no-data {
         text-align: center;
-        padding: 2rem;
-        color: var(--gray-600);
+        padding: 3rem 2rem;
+        color: var(--gray-500);
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .card {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    @media (max-width: 768px) {
+        .stats-mini-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Real-Time Progress</h1>
-    <p class="page-subtitle">Monitor enrichment progress and data quality</p>
-</div>
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">Real-Time Progress</h1>
+        <p class="page-subtitle">Monitor enrichment progress and data quality</p>
+    </div>
 
-<div class="connection-status disconnected" id="connectionStatus">
-    🔴 Connecting to live stream...
-</div>
+    <div class="connection-status disconnected" id="connectionStatus">
+        🔴 Connecting to live stream...
+    </div>
 
-{% if current_run %}
+    {% if current_run %}
     <div class="progress-container">
         <!-- Main Progress Area -->
         <div class="progress-main">
@@ -289,14 +429,15 @@
             <div id="dataPreview" class="no-data">No data yet</div>
         </div>
     </div>
-{% else %}
+    {% else %}
     <div class="card">
         <div class="no-data">
             <p>No enrichment currently running.</p>
             <a href="/" class="btn btn-primary mt-2">Go to Dashboard</a>
         </div>
     </div>
-{% endif %}
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
