@@ -8,10 +8,12 @@ from celery import Celery
 import os
 
 # Initialize Celery app
+# Handle empty REDIS_URL by falling back to default
+redis_url = os.getenv('REDIS_URL') or 'redis://localhost:6379/0'
 celery_app = Celery(
     'dpc_enrichment',
-    broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    broker=redis_url,
+    backend=redis_url
 )
 
 # Celery configuration
