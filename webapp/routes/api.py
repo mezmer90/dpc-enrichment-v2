@@ -845,7 +845,7 @@ def check_run(run_id):
             return jsonify({'error': 'Run not found'}), 404
 
         # Get practices enriched in this run
-        practices = Practice.query.filter_by(enrichment_run_id=run_id).all()
+        practices = Practice.query.filter_by(run_id=run_id).all()
 
         practice_details = []
         for p in practices:
