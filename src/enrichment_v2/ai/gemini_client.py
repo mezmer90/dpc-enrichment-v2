@@ -16,6 +16,11 @@ from openai import OpenAI
 import asyncio
 
 from ..utils.retry import retry_with_backoff
+from ..utils.api_exceptions import (
+    APIBudgetError,
+    APIRateLimitError,
+    detect_api_error_type
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,8 +171,24 @@ class GeminiClient:
             raise Exception(f"Invalid JSON from AI: {e}")
 
         except Exception as e:
-            logger.error(f"Gemini extraction failed: {e}")
-            raise
+            # Check if this is a budget or rate limit error
+            error_type = detect_api_error_type(e, 'OpenRouter')
+
+            if error_type == 'budget':
+                raise APIBudgetError(
+                    api_name='OpenRouter',
+                    message=f"API budget/credits exhausted: {str(e)}",
+                    original_error=e
+                )
+            elif error_type == 'rate_limit':
+                raise APIRateLimitError(
+                    api_name='OpenRouter',
+                    message=f"API rate limit hit: {str(e)}",
+                    original_error=e
+                )
+            else:
+                logger.error(f"Gemini extraction failed: {e}")
+                raise
 
     def _make_api_call(self, prompt: str):
         """Make synchronous API call (to be run in thread)"""

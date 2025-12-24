@@ -41,6 +41,8 @@ from .storage.markdown_storage import MarkdownStorage
 from .storage.data_storage import DataStorage
 from .utils.progress import ProgressTracker, PracticeStatus
 from .utils.rate_limiter import RateLimiter
+from .utils.api_exceptions import APIBudgetError, APIRateLimitError
+from .utils.api_pause_handler import APIPauseHandler
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +143,7 @@ class EnrichmentOrchestrator:
         )
         self.rate_limiter = RateLimiter()
         self.circuit_breaker_manager = CircuitBreakerManager()
+        self.api_pause_handler = APIPauseHandler()
 
         # Statistics
         self.stats = EnrichmentStats()
@@ -404,6 +407,41 @@ class EnrichmentOrchestrator:
 
             logger.info(f"  [SUCCESS] {display_name} completed!")
 
+        except (APIBudgetError, APIRateLimitError) as e:
+            # API budget/rate limit error - PAUSE enrichment, don't mark as failed
+            logger.error(f"[{practice_id}] API issue detected: {e}")
+
+            # Determine error type
+            error_type = 'budget' if isinstance(e, APIBudgetError) else 'rate_limit'
+            retry_after = getattr(e, 'retry_after', None)
+
+            # Pause the enrichment
+            self.api_pause_handler.pause_for_api_issue(
+                api_name=e.api_name,
+                error_type=error_type,
+                error_message=e.message,
+                retry_after=retry_after
+            )
+
+            # Prompt user to resume
+            should_resume = self.api_pause_handler.prompt_user_to_resume()
+
+            if should_resume:
+                # Test API connection before resuming
+                logger.info(f"Testing {e.api_name} connection...")
+
+                # Resume enrichment
+                self.api_pause_handler.resume()
+
+                # Re-raise the exception to retry this practice
+                # The orchestrator will continue from this practice
+                logger.info(f"Retrying practice: {practice_id}")
+                raise
+
+            else:
+                # User chose to stop - raise to halt enrichment
+                raise KeyboardInterrupt("User stopped enrichment due to API issue")
+
         except CircuitBreakerOpenError:
             logger.warning(f"[{practice_id}] Circuit breaker triggered")
             await self._update_stats(skipped=1, failure_reason='circuit_breaker')
@@ -565,7 +603,7 @@ class EnrichmentOrchestrator:
             # Only resume if we actually have some progress
             if successful_ids or failed_ids:
                 logger.info(
-                    f"🔄 Auto-resume detected: {len(successful_ids)} already completed, "
+                    f"[RESUME] Auto-resume detected: {len(successful_ids)} already completed, "
                     f"{len(pending_ids)} pending, {len(failed_ids)} failed"
                 )
 
@@ -605,7 +643,7 @@ class EnrichmentOrchestrator:
         # Apply limit if specified (for testing)
         if self.limit and self.limit < len(practices):
             practices = practices[:self.limit]
-            logger.info(f"⚠️  LIMIT APPLIED: Processing only {self.limit} practices (test mode)")
+            logger.info(f"[!] LIMIT APPLIED: Processing only {self.limit} practices (test mode)")
 
         return practices
 

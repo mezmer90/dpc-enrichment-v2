@@ -21,6 +21,19 @@ import logging
 import argparse
 from pathlib import Path
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent / '.env'
+    if env_file.exists():
+        load_dotenv(env_file)
+        print(f"[OK] Loaded environment variables from {env_file}")
+    else:
+        print(f"[!] No .env file found. Please create one from .env.example")
+        print(f"    Copy .env.example to .env and add your API keys")
+except ImportError:
+    print("[!] python-dotenv not installed, skipping .env file loading")
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
@@ -32,14 +45,21 @@ from enrichment_v2.config import (
     PROGRESS_FILE
 )
 
-# Setup logging
+# Setup Windows-safe logging
+from enrichment_v2.utils.safe_console import WindowsSafeFormatter
+
+# Console handler with Windows-safe formatter
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(WindowsSafeFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# File handler with UTF-8 encoding (keeps full Unicode in file)
+file_handler = logging.FileHandler('batch_enrichment_v2.log', encoding='utf-8')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('batch_enrichment_v2.log', encoding='utf-8')
-    ]
+    handlers=[console_handler, file_handler]
 )
 
 logger = logging.getLogger(__name__)
@@ -47,13 +67,36 @@ logger = logging.getLogger(__name__)
 
 def set_environment_variables():
     """Set environment variables for the enrichment run"""
+    # Check if API keys are set
+    if not OPENROUTER_API_KEY:
+        logger.error("=" * 80)
+        logger.error("CRITICAL ERROR: OPENROUTER_API_KEY not set!")
+        logger.error("=" * 80)
+        logger.error("Please set your API key in one of these ways:")
+        logger.error("  1. Create a .env file (copy from .env.example)")
+        logger.error("  2. Set environment variable: OPENROUTER_API_KEY=your_key")
+        logger.error("\nGet your key from: https://openrouter.ai/keys")
+        logger.error("=" * 80)
+        sys.exit(1)
+
+    if not SCRAPERAPI_KEY:
+        logger.error("=" * 80)
+        logger.error("CRITICAL ERROR: SCRAPERAPI_KEY not set!")
+        logger.error("=" * 80)
+        logger.error("Please set your API key in one of these ways:")
+        logger.error("  1. Create a .env file (copy from .env.example)")
+        logger.error("  2. Set environment variable: SCRAPERAPI_KEY=your_key")
+        logger.error("\nGet your key from: https://www.scraperapi.com/")
+        logger.error("=" * 80)
+        sys.exit(1)
+
     os.environ['OPENROUTER_API_KEY'] = OPENROUTER_API_KEY
     os.environ['SCRAPERAPI_KEY'] = SCRAPERAPI_KEY
     os.environ['USE_SCRAPING_API'] = 'true'
 
     logger.info("Environment variables configured:")
-    logger.info(f"  OPENROUTER_API_KEY: {'*' * 8}")
-    logger.info(f"  SCRAPERAPI_KEY: {'*' * 8}")
+    logger.info(f"  OPENROUTER_API_KEY: {'*' * 8} (length: {len(OPENROUTER_API_KEY)})")
+    logger.info(f"  SCRAPERAPI_KEY: {'*' * 8} (length: {len(SCRAPERAPI_KEY)})")
     logger.info(f"  USE_SCRAPING_API: true")
 
 
@@ -147,15 +190,15 @@ Examples:
     logger.info(f"  Checkpoint: Every {config['checkpoint_interval']} practice(s)")
     logger.info(f"  Resume: {config['resume']}")
     if config['limit']:
-        logger.info(f"  ⚠️  LIMIT: {config['limit']} practices (TEST MODE)")
+        logger.info(f"  [!] LIMIT: {config['limit']} practices (TEST MODE)")
 
     logger.info("\nFeatures:")
-    logger.info("  ✅ ScraperAPI (98.9% success rate)")
-    logger.info("  ✅ Smart URL selector (Gemini AI)")
-    logger.info("  ✅ Progressive saving (after EVERY practice)")
-    logger.info("  ✅ Content quality validation (2500+ chars)")
-    logger.info("  ✅ Crash protection (exit handlers)")
-    logger.info("  ✅ Multi-location awareness (providers matched to location)")
+    logger.info("  [OK] ScraperAPI (98.9% success rate)")
+    logger.info("  [OK] Smart URL selector (Gemini AI)")
+    logger.info("  [OK] Progressive saving (after EVERY practice)")
+    logger.info("  [OK] Content quality validation (2500+ chars)")
+    logger.info("  [OK] Crash protection (exit handlers)")
+    logger.info("  [OK] Multi-location awareness (providers matched to location)")
 
     # Load practice count for cost estimation
     from enrichment_v2.storage.data_storage import DataStorage
@@ -179,8 +222,8 @@ Examples:
     logger.info(f"  Cost per practice: ~${cost_estimate['per_practice']:.4f}")
 
     if config['limit']:
-        logger.info(f"\n  💡 This is a TEST run with {config['limit']} practices")
-        logger.info(f"  💡 Full run ({total_practices:,} practices) would cost ~${estimate_cost(total_practices)['total']:.2f}")
+        logger.info(f"\n  [TIP] This is a TEST run with {config['limit']} practices")
+        logger.info(f"  [TIP] Full run ({total_practices:,} practices) would cost ~${estimate_cost(total_practices)['total']:.2f}")
 
     logger.info("\nExpected Results:")
     logger.info("  Success rate: 90-95%")

@@ -33,11 +33,7 @@ MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Default file paths for CLI
-DEFAULT_INPUT_FILE = INPUT_FILE
-DEFAULT_OUTPUT_FILE = OUTPUT_FILE
-DEFAULT_MARKDOWN_DIR = MARKDOWN_DIR
-DEFAULT_PROGRESS_FILE = PROGRESS_FILE
+# Note: DEFAULT_* variables removed - use direct references to avoid duplication
 
 # ==================== SCRAPING ====================
 
@@ -105,14 +101,20 @@ AI_MODEL = 'google/gemini-2.5-flash-preview-09-2025'
 AI_PROVIDER = 'openrouter'
 AI_BASE_URL = 'https://openrouter.ai/api/v1'
 
-# Get API keys from environment
-OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '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')
+# Get API keys from environment (REQUIRED - no defaults for security)
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
 if not OPENROUTER_API_KEY:
-    print("WARNING: OPENROUTER_API_KEY not set in environment variables!")
+    print("ERROR: OPENROUTER_API_KEY not set in environment variables!")
+    print("Please set it in your .env file or environment")
+    print("Example: OPENROUTER_API_KEY=sk-or-v1-...")
 
 # ScraperAPI (commercial scraping with 98.9% success rate)
-SCRAPERAPI_KEY = os.getenv('SCRAPERAPI_KEY', '5856f2c14997d16b983237b6e0ad26aa')
-SERPER_API_KEY = os.getenv('SERPER_API_KEY', '148de20ef53ae3b99ad8a10fb130668205f3dd5c')
+SCRAPERAPI_KEY = os.getenv('SCRAPERAPI_KEY', '')
+if not SCRAPERAPI_KEY:
+    print("ERROR: SCRAPERAPI_KEY not set in environment variables!")
+    print("Please set it in your .env file or environment")
+
+SERPER_API_KEY = os.getenv('SERPER_API_KEY', '')
 
 # Enable ScraperAPI by default
 USE_SCRAPING_API = os.getenv('USE_SCRAPING_API', 'true').lower() == 'true'

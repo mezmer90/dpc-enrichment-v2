@@ -30,6 +30,11 @@ from .base_scraper import (
 )
 from ..markdown.converter import MarkdownConverter
 from ..config import MIN_CONTENT_LENGTH, MIN_SUBSTANTIAL_PAGES
+from ..utils.api_exceptions import (
+    APIBudgetError,
+    APIRateLimitError,
+    detect_api_error_type
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +154,20 @@ class ScraperAPIScraper(BaseScraper):
                 load_time = asyncio.get_event_loop().time() - start_time
 
                 if status_code != 200:
-                    raise ScraperError(f"ScraperAPI returned status {status_code}")
+                    # Check for budget/rate limit errors
+                    if status_code == 429:
+                        raise APIRateLimitError(
+                            api_name='ScraperAPI',
+                            message=f"Rate limit exceeded (HTTP 429)",
+                            retry_after=int(response.headers.get('Retry-After', 60))
+                        )
+                    elif status_code == 402:
+                        raise APIBudgetError(
+                            api_name='ScraperAPI',
+                            message=f"Insufficient credits (HTTP 402 Payment Required)"
+                        )
+                    else:
+                        raise ScraperError(f"ScraperAPI returned status {status_code}")
 
                 # Extract title from HTML
                 soup = BeautifulSoup(html, 'html.parser')
@@ -178,10 +196,31 @@ class ScraperAPIScraper(BaseScraper):
             self.update_stats(False, 0, load_time)
             raise ScraperTimeoutError(f"ScraperAPI timeout for {url}")
 
+        except (APIBudgetError, APIRateLimitError):
+            # Re-raise API issues without wrapping
+            raise
+
         except Exception as e:
             load_time = asyncio.get_event_loop().time() - start_time
             self.update_stats(False, 0, load_time)
-            raise ScraperError(f"ScraperAPI error: {e}")
+
+            # Check if this is a budget or rate limit error
+            error_type = detect_api_error_type(e, 'ScraperAPI')
+
+            if error_type == 'budget':
+                raise APIBudgetError(
+                    api_name='ScraperAPI',
+                    message=f"API budget/credits exhausted: {str(e)}",
+                    original_error=e
+                )
+            elif error_type == 'rate_limit':
+                raise APIRateLimitError(
+                    api_name='ScraperAPI',
+                    message=f"API rate limit hit: {str(e)}",
+                    original_error=e
+                )
+            else:
+                raise ScraperError(f"ScraperAPI error: {e}")
 
     async def scrape_multi_page(
         self,
