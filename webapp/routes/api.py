@@ -833,56 +833,99 @@ def load_practices():
 @bp.route('/admin/check-run/<int:run_id>', methods=['GET'])
 def check_run(run_id):
     """Check enrichment run details (admin only)"""
-    from app import APP_PASSWORD
+    try:
+        from app import APP_PASSWORD
 
-    password = request.args.get('password', '')
-    if password != APP_PASSWORD:
-        return jsonify({'error': 'Unauthorized'}), 401
+        password = request.args.get('password', '')
+        if password != APP_PASSWORD:
+            return jsonify({'error': 'Unauthorized'}), 401
 
-    run = EnrichmentRun.query.get(run_id)
-    if not run:
-        return jsonify({'error': 'Run not found'}), 404
+        run = EnrichmentRun.query.get(run_id)
+        if not run:
+            return jsonify({'error': 'Run not found'}), 404
 
-    # Get practices enriched in this run
-    practices = Practice.query.filter_by(enrichment_run_id=run_id).all()
+        # Get practices enriched in this run
+        practices = Practice.query.filter_by(enrichment_run_id=run_id).all()
 
-    practice_details = []
-    for p in practices:
-        details = {
-            'id': p.id,
-            'practice_id': p.practice_id,
-            'practice_name': p.practice_name,
-            'enrichment_status': p.enrichment_status,
-            'enriched_at': p.enriched_at.isoformat() if p.enriched_at else None
-        }
+        practice_details = []
+        for p in practices:
+            details = {
+                'id': p.id,
+                'practice_id': p.practice_id,
+                'practice_name': p.practice_name,
+                'enrichment_status': p.enrichment_status,
+                'enriched_at': p.enriched_at.isoformat() if p.enriched_at else None
+            }
 
-        if p.data:
-            # Count missing values
-            na_fields = [k for k, v in p.data.items() if v == '-NA-']
-            neg_one_fields = [k for k, v in p.data.items() if v == -1]
-            details['data_fields'] = len(p.data)
-            details['na_count'] = len(na_fields)
-            details['neg_one_count'] = len(neg_one_fields)
-            details['sample_na_fields'] = na_fields[:5]
+            if p.data:
+                # Count missing values
+                na_fields = [k for k, v in p.data.items() if v == '-NA-']
+                neg_one_fields = [k for k, v in p.data.items() if v == -1]
+                details['data_fields'] = len(p.data)
+                details['na_count'] = len(na_fields)
+                details['neg_one_count'] = len(neg_one_fields)
+                details['sample_na_fields'] = na_fields[:5]
 
-        practice_details.append(details)
+            practice_details.append(details)
 
-    return jsonify({
-        'run': {
-            'id': run.id,
-            'status': run.status,
-            'total_practices': run.total_practices,
-            'successful': run.successful,
-            'failed': run.failed,
-            'skipped': run.skipped,
-            'success_rate': run.success_rate,
-            'total_cost': float(run.total_cost or 0),
-            'started_at': run.started_at.isoformat() if run.started_at else None,
-            'completed_at': run.completed_at.isoformat() if run.completed_at else None,
-            'config': run.config
-        },
-        'practices': practice_details
-    })
+        return jsonify({
+            'run': {
+                'id': run.id,
+                'status': run.status,
+                'total_practices': run.total_practices,
+                'successful': run.successful,
+                'failed': run.failed,
+                'skipped': run.skipped,
+                'success_rate': run.success_rate,
+                'total_cost': float(run.total_cost or 0),
+                'started_at': run.started_at.isoformat() if run.started_at else None,
+                'completed_at': run.completed_at.isoformat() if run.completed_at else None,
+                'config': run.config
+            },
+            'practices': practice_details
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': 'Internal server error',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@bp.route('/admin/list-runs', methods=['GET'])
+def list_runs():
+    """List all enrichment runs (admin only)"""
+    try:
+        from app import APP_PASSWORD
+
+        password = request.args.get('password', '')
+        if password != APP_PASSWORD:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        runs = EnrichmentRun.query.order_by(EnrichmentRun.id.desc()).limit(10).all()
+
+        return jsonify({
+            'runs': [
+                {
+                    'id': r.id,
+                    'status': r.status,
+                    'total_practices': r.total_practices,
+                    'successful': r.successful,
+                    'failed': r.failed,
+                    'started_at': r.started_at.isoformat() if r.started_at else None,
+                    'completed_at': r.completed_at.isoformat() if r.completed_at else None
+                }
+                for r in runs
+            ]
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': 'Internal server error',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 @bp.route('/export/enriched', methods=['GET'])
