@@ -1,0 +1,543 @@
+{% extends "base.html" %}
+
+{% block title %}API Explorer - DPC Enrichment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Enhanced spacing and layout */
+    .page-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 2.5rem;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 0.75rem;
+    }
+
+    .page-subtitle {
+        color: var(--gray-600);
+        font-size: 1.125rem;
+    }
+
+    .endpoint-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .endpoint-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .endpoint-card:hover {
+        box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 8px 12px -4px rgba(0, 0, 0, 0.08);
+    }
+
+    .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .method-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.875rem;
+        letter-spacing: 0.05em;
+        min-width: 70px;
+        text-align: center;
+    }
+
+    .method-get {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .method-post {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .endpoint-path {
+        font-family: 'Courier New', monospace;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+
+    .endpoint-description {
+        color: var(--gray-600);
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+    }
+
+    .params-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-label {
+        font-weight: 700;
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+
+    .param-list {
+        background: var(--gray-50);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid var(--gray-200);
+    }
+
+    .param-item {
+        margin-bottom: 0.5rem;
+        font-size: 0.9375rem;
+    }
+
+    .param-name {
+        font-family: 'Courier New', monospace;
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .param-type {
+        color: var(--gray-500);
+        font-style: italic;
+        font-size: 0.875rem;
+    }
+
+    .test-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid var(--gray-200);
+    }
+
+    .test-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9375rem;
+        margin-bottom: 1rem;
+    }
+
+    .test-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .test-buttons {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .response-box {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1.5rem;
+        border-radius: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        max-height: 400px;
+        overflow: auto;
+        border: 1px solid #2d2d2d;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .response-box::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .response-box::-webkit-scrollbar-track {
+        background: #252525;
+        border-radius: 4px;
+    }
+
+    .response-box::-webkit-scrollbar-thumb {
+        background: #404040;
+        border-radius: 4px;
+    }
+
+    .response-box::-webkit-scrollbar-thumb:hover {
+        background: #505050;
+    }
+
+    .example-request {
+        background: var(--gray-50);
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid var(--primary);
+        margin-top: 1rem;
+    }
+
+    .example-title {
+        font-weight: 700;
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .example-code {
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        color: var(--gray-800);
+    }
+
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1.5rem;
+        }
+
+        .test-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">API Explorer</h1>
+        <p class="page-subtitle">Test and explore all available API endpoints</p>
+    </div>
+
+    <div class="endpoint-grid">
+        <!-- Enrichment Status -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/enrichment/status</span>
+            </div>
+            <p class="endpoint-description">Get current enrichment run status including progress, statistics, and run details.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/enrichment/status', 'GET', null, 'status-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="status-response">Click "Test Endpoint" to see response...</div>
+            </div>
+
+            <div class="example-request">
+                <div class="example-title">Example Response:</div>
+                <div class="example-code">
+{
+  "current_run": {
+    "id": 1,
+    "status": "running",
+    "total_practices": 2763,
+    "successful": 150,
+    "failed": 5,
+    "success_rate": 96.8
+  }
+}
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Enrichment -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/enrichment/start</span>
+            </div>
+            <p class="endpoint-description">Start a new enrichment run with optional limit and worker configuration.</p>
+
+            <div class="params-section">
+                <div class="section-label">Request Body (JSON):</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">limit</span> <span class="param-type">(number, optional)</span> - Number of practices to enrich
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">max_workers</span> <span class="param-type">(number, optional)</span> - Max concurrent workers (default: 6)
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <textarea class="test-input" id="start-body" rows="3" placeholder='{"limit": 10, "max_workers": 4}'>{
+  "limit": 10,
+  "max_workers": 4
+}</textarea>
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/enrichment/start', 'POST', 'start-body', 'start-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="start-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Pause Enrichment -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/enrichment/pause</span>
+            </div>
+            <p class="endpoint-description">Pause the currently running enrichment process.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-warning" onclick="testEndpoint('/api/enrichment/pause', 'POST', null, 'pause-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="pause-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Resume Enrichment -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/enrichment/resume</span>
+            </div>
+            <p class="endpoint-description">Resume a paused enrichment process.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-success" onclick="testEndpoint('/api/enrichment/resume', 'POST', null, 'resume-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="resume-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Stop Enrichment -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/enrichment/stop</span>
+            </div>
+            <p class="endpoint-description">Stop the currently running or paused enrichment process.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-danger" onclick="testEndpoint('/api/enrichment/stop', 'POST', null, 'stop-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="stop-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- List Practices -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/practices</span>
+            </div>
+            <p class="endpoint-description">List practices with pagination, filtering, and search.</p>
+
+            <div class="params-section">
+                <div class="section-label">Query Parameters:</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">page</span> <span class="param-type">(number, optional)</span> - Page number (default: 1)
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">per_page</span> <span class="param-type">(number, optional)</span> - Items per page (default: 50)
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">status</span> <span class="param-type">(string, optional)</span> - Filter by status (pending, completed, failed)
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">search</span> <span class="param-type">(string, optional)</span> - Search by name or ID
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <input type="text" class="test-input" id="practices-query" placeholder="?page=1&per_page=10&status=completed" value="?page=1&per_page=10">
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpointWithQuery('/api/practices', 'practices-query', 'practices-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="practices-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Get Practice Details -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/practices/{id}</span>
+            </div>
+            <p class="endpoint-description">Get detailed information about a specific practice including enriched data.</p>
+
+            <div class="test-section">
+                <input type="text" class="test-input" id="practice-id" placeholder="Enter practice ID (e.g., 1)" value="1">
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testPracticeDetail()">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="practice-detail-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Get Statistics -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/stats</span>
+            </div>
+            <p class="endpoint-description">Get overall enrichment statistics including total practices, success rate, and costs.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/stats', 'GET', null, 'stats-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="stats-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- API Status -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/api_status</span>
+            </div>
+            <p class="endpoint-description">Check health status of external APIs (OpenRouter, ScraperAPI, etc.).</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/api_status', 'GET', null, 'api-status-response')">
+                        🧪 Test Endpoint
+                    </button>
+                </div>
+                <div class="response-box" id="api-status-response">Click "Test Endpoint" to see response...</div>
+            </div>
+        </div>
+
+        <!-- Export CSV -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/export/csv</span>
+            </div>
+            <p class="endpoint-description">Export practices to CSV file with optional filtering.</p>
+
+            <div class="params-section">
+                <div class="section-label">Query Parameters:</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">status</span> <span class="param-type">(string, optional)</span> - Filter by status
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">search</span> <span class="param-type">(string, optional)</span> - Search filter
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <a href="/api/export/csv" class="btn btn-success" download>
+                        📥 Download CSV
+                    </a>
+                    <a href="/api/export/csv?status=completed" class="btn btn-secondary" download>
+                        📥 Download Completed Only
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export JSON -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/export/json</span>
+            </div>
+            <p class="endpoint-description">Export practices to JSON file with optional filtering.</p>
+
+            <div class="test-section">
+                <div class="test-buttons">
+                    <a href="/api/export/json" class="btn btn-success" download>
+                        📥 Download JSON
+                    </a>
+                    <a href="/api/export/json?status=completed" class="btn btn-secondary" download>
+                        📥 Download Completed Only
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function testEndpoint(path, method, bodyElementId, responseElementId) {
+        const responseBox = document.getElementById(responseElementId);
+        responseBox.textContent = 'Loading...';
+
+        try {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (bodyElementId && method === 'POST') {
+                const bodyText = document.getElementById(bodyElementId).value;
+                try {
+                    options.body = JSON.stringify(JSON.parse(bodyText));
+                } catch (e) {
+                    responseBox.textContent = `Error: Invalid JSON in request body\n${e.message}`;
+                    return;
+                }
+            }
+
+            const response = await fetch(path, options);
+            const data = await response.json();
+
+            responseBox.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+            responseBox.textContent = `Error: ${error.message}`;
+        }
+    }
+
+    async function testEndpointWithQuery(basePath, queryElementId, responseElementId) {
+        const query = document.getElementById(queryElementId).value;
+        const fullPath = basePath + query;
+        await testEndpoint(fullPath, 'GET', null, responseElementId);
+    }
+
+    async function testPracticeDetail() {
+        const id = document.getElementById('practice-id').value;
+        if (!id) {
+            document.getElementById('practice-detail-response').textContent = 'Error: Please enter a practice ID';
+            return;
+        }
+        await testEndpoint(`/api/practices/${id}`, 'GET', null, 'practice-detail-response');
+    }
+</script>
+{% endblock %}

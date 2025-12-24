@@ -126,3 +126,10 @@ def settings():
     api_statuses = APIStatus.query.all()
 
     return render_template('settings.html', api_statuses=api_statuses)
+
+
+@bp.route('/api-explorer')
+def api_explorer():
+    """API documentation and testing page"""
+
+    return render_template('api_explorer.html')

@@ -217,6 +217,7 @@
                 <li><a href="/progress" class="nav-link {% if request.endpoint == 'main.progress' %}active{% endif %}">Progress</a></li>
                 <li><a href="/practices" class="nav-link {% if request.endpoint == 'main.practices' %}active{% endif %}">Practices</a></li>
                 <li><a href="/runs" class="nav-link {% if request.endpoint == 'main.runs' %}active{% endif %}">Runs</a></li>
+                <li><a href="/api-explorer" class="nav-link {% if request.endpoint == 'main.api_explorer' %}active{% endif %}">API</a></li>
                 <li><a href="/settings" class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}">Settings</a></li>
                 <li><a href="/logout" class="btn-logout">Logout</a></li>
             </ul>
@@ -224,9 +225,7 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container">
-        {% block content %}{% endblock %}
-    </div>
+    {% block content %}{% endblock %}
 
     <!-- Scripts -->
     <script>
