@@ -153,7 +153,8 @@ async def _enrich_practices_async(
                     'practice_id': p.practice_id,
                     'practice_name': p.practice_name,
                     'website_url': p.website_url,
-                    'data': p.data or {}
+                    'enrichment_level': 'partial',  # Mark as partial so orchestrator processes them
+                    **(p.data or {})  # Merge any existing enriched data
                 }
                 for p in practices
             ]
