@@ -84,8 +84,8 @@ def create_app(config_name=None):
     # Simple password protection middleware
     @app.before_request
     def check_password():
-        # Allow health check, login, logout, and static files
-        if request.path in ['/health', '/login', '/logout'] or request.path.startswith('/static'):
+        # Allow health check, login, logout, API endpoints, and static files
+        if request.path in ['/health', '/login', '/logout'] or request.path.startswith('/static') or request.path.startswith('/api/'):
             return None
 
         # Check if authenticated
