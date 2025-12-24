@@ -25,3 +25,6 @@ tiktoken==0.8.0
 undetected-chromedriver==3.5.5
 selenium==4.16.0
 pandas>=2.2.0
+
+# Geocoding
+geopy==2.4.1

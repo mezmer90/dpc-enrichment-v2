@@ -444,6 +444,131 @@ def export_json():
     )
 
 
+@bp.route('/admin/reverse-geocode', methods=['POST'])
+def reverse_geocode_addresses():
+    """Reverse geocode practices with lat/long but missing addresses (admin only)"""
+    from datetime import datetime
+    import time
+
+    # Simple password protection
+    data = request.get_json() or {}
+    password = data.get('password', '')
+
+    from app import APP_PASSWORD
+    if password != APP_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        from geopy.geocoders import Nominatim
+        from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+
+        # Initialize geocoder with a custom user agent
+        geolocator = Nominatim(user_agent="dpc-enrichment-app")
+
+        # Find practices with lat/long but missing address
+        practices_to_geocode = Practice.query.filter(
+            Practice.latitude.isnot(None),
+            Practice.longitude.isnot(None),
+            db.or_(
+                Practice.address_street.is_(None),
+                Practice.address_city.is_(None)
+            )
+        ).limit(data.get('limit', 100)).all()
+
+        stats = {
+            'total_found': len(practices_to_geocode),
+            'geocoded': 0,
+            'failed': 0,
+            'errors': []
+        }
+
+        for practice in practices_to_geocode:
+            try:
+                # Reverse geocode
+                location = geolocator.reverse(
+                    f"{practice.latitude}, {practice.longitude}",
+                    timeout=10,
+                    language='en'
+                )
+
+                if location and location.raw.get('address'):
+                    addr = location.raw['address']
+
+                    # Update practice with address components
+                    if not practice.address_street:
+                        # Build street address from components
+                        street_parts = []
+                        if addr.get('house_number'):
+                            street_parts.append(addr['house_number'])
+                        if addr.get('road'):
+                            street_parts.append(addr['road'])
+                        elif addr.get('street'):
+                            street_parts.append(addr['street'])
+
+                        if street_parts:
+                            practice.address_street = ' '.join(street_parts)
+
+                    if not practice.address_city:
+                        practice.address_city = (
+                            addr.get('city') or
+                            addr.get('town') or
+                            addr.get('village') or
+                            addr.get('hamlet') or
+                            addr.get('county')
+                        )
+
+                    if not practice.address_state:
+                        practice.address_state = addr.get('state')
+
+                    if not practice.address_zip:
+                        practice.address_zip = addr.get('postcode')
+
+                    practice.updated_at = datetime.utcnow()
+
+                    stats['geocoded'] += 1
+
+                    # Commit every 10 practices
+                    if stats['geocoded'] % 10 == 0:
+                        db.session.commit()
+
+                    # Rate limiting - Nominatim has 1 request per second limit
+                    time.sleep(1.1)
+
+                else:
+                    stats['failed'] += 1
+                    stats['errors'].append(f"{practice.practice_id}: No address found")
+
+            except (GeocoderTimedOut, GeocoderServiceError) as e:
+                stats['failed'] += 1
+                stats['errors'].append(f"{practice.practice_id}: {str(e)}")
+                time.sleep(2)  # Extra delay on error
+                continue
+            except Exception as e:
+                stats['failed'] += 1
+                stats['errors'].append(f"{practice.practice_id}: {str(e)}")
+                continue
+
+        # Final commit
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'error': f'Failed to commit: {str(e)}',
+                'stats': stats
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'message': f'Reverse geocoded {stats["geocoded"]} practices',
+            'stats': stats
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to reverse geocode: {str(e)}'}), 500
+
+
 @bp.route('/admin/load-practices', methods=['POST'])
 def load_practices():
     """Load practices from JSON file into database (admin only)"""
