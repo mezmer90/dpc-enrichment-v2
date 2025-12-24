@@ -48,8 +48,7 @@ class Config:
     MARKDOWN_DIR = BASE_DIR / 'data' / 'markdown'
     ENRICHED_DIR = BASE_DIR / 'data' / 'enriched'
 
-    # Session
-    SESSION_TYPE = 'filesystem'
+    # Session (uses Flask's default secure cookie-based sessions)
     PERMANENT_SESSION_LIFETIME = 86400  # 24 hours
 
 
