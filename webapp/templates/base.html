@@ -104,6 +104,10 @@
         }
 
         /* Main Content */
+        main {
+            min-height: calc(100vh - 73px); /* Full height minus navbar */
+        }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -225,7 +229,9 @@
     </nav>
 
     <!-- Main Content -->
-    {% block content %}{% endblock %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
 
     <!-- Scripts -->
     <script>
