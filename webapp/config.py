@@ -28,7 +28,8 @@ class Config:
     }
 
     # Redis (for Celery)
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    # Handle empty REDIS_URL by falling back to default
+    REDIS_URL = os.getenv('REDIS_URL') or 'redis://localhost:6379/0'
 
     # Celery
     CELERY_BROKER_URL = REDIS_URL

@@ -11,11 +11,16 @@ from typing import Dict, Any, Generator
 from datetime import datetime
 from enum import Enum
 
-# Redis connection
-redis_client = redis.from_url(
-    os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-    decode_responses=True
-)
+# Redis connection (lazy initialization)
+_redis_client = None
+
+def get_redis_client():
+    """Get or create Redis client (lazy initialization)"""
+    global _redis_client
+    if _redis_client is None:
+        redis_url = os.getenv('REDIS_URL') or 'redis://localhost:6379/0'
+        _redis_client = redis.from_url(redis_url, decode_responses=True)
+    return _redis_client
 
 PROGRESS_CHANNEL = 'dpc:enrichment:progress'
 
@@ -56,7 +61,7 @@ def publish_progress(
     }
 
     try:
-        redis_client.publish(PROGRESS_CHANNEL, json.dumps(message))
+        get_redis_client().publish(PROGRESS_CHANNEL, json.dumps(message))
     except Exception as e:
         # Don't fail enrichment if Redis publish fails
         import logging
@@ -71,7 +76,7 @@ def subscribe_to_progress() -> Generator[Dict[str, Any], None, None]:
     Yields:
         Progress update dictionaries for SSE streaming
     """
-    pubsub = redis_client.pubsub()
+    pubsub = get_redis_client().pubsub()
     pubsub.subscribe(PROGRESS_CHANNEL)
 
     try:
@@ -109,7 +114,7 @@ def get_current_stats(run_id: int) -> Dict[str, Any]:
     cache_key = f'dpc:enrichment:stats:{run_id}'
 
     try:
-        cached = redis_client.get(cache_key)
+        cached = get_redis_client().get(cache_key)
         if cached:
             return json.loads(cached)
     except Exception:
@@ -135,7 +140,7 @@ def update_stats_cache(run_id: int, stats: Dict[str, Any]) -> None:
     cache_key = f'dpc:enrichment:stats:{run_id}'
 
     try:
-        redis_client.setex(
+        get_redis_client().setex(
             cache_key,
             3600,  # Expire after 1 hour
             json.dumps(stats)
@@ -157,7 +162,7 @@ def set_run_control(run_id: int, action: str) -> None:
     control_key = f'dpc:enrichment:control:{run_id}'
 
     try:
-        redis_client.setex(
+        get_redis_client().setex(
             control_key,
             600,  # Expire after 10 minutes
             action
@@ -181,7 +186,7 @@ def get_run_control(run_id: int) -> str:
     control_key = f'dpc:enrichment:control:{run_id}'
 
     try:
-        action = redis_client.get(control_key)
+        action = get_redis_client().get(control_key)
         return action or ''
     except Exception:
         return ''
@@ -197,7 +202,7 @@ def clear_run_control(run_id: int) -> None:
     control_key = f'dpc:enrichment:control:{run_id}'
 
     try:
-        redis_client.delete(control_key)
+        get_redis_client().delete(control_key)
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
