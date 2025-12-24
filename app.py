@@ -107,8 +107,12 @@ def create_app(config_name=None):
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
+        app.logger.error(f"500 Error: {str(error)}", exc_info=True)
         if request.path.startswith('/api/'):
-            return jsonify({'error': 'Internal server error'}), 500
+            return jsonify({
+                'error': 'Internal server error',
+                'details': str(error) if app.debug else None
+            }), 500
         return render_template('500.html'), 500
 
     return app

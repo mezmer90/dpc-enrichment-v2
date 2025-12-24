@@ -17,49 +17,57 @@ bp = Blueprint('api', __name__)
 @bp.route('/enrichment/start', methods=['POST'])
 def start_enrichment():
     """Start new enrichment run"""
+    try:
+        # Check if already running
+        existing_run = EnrichmentRun.query.filter(
+            EnrichmentRun.status.in_(['running', 'paused'])
+        ).first()
 
-    # Check if already running
-    existing_run = EnrichmentRun.query.filter(
-        EnrichmentRun.status.in_(['running', 'paused'])
-    ).first()
+        if existing_run:
+            return jsonify({
+                'error': 'Enrichment already running',
+                'run_id': existing_run.id
+            }), 400
 
-    if existing_run:
+        # Get parameters
+        data = request.get_json() or {}
+        limit = data.get('limit')
+        max_workers = data.get('max_workers', 6)
+
+        # Create new run
+        run = EnrichmentRun(
+            status='pending',
+            created_by='admin',
+            config={
+                'limit': limit,
+                'max_workers': max_workers
+            }
+        )
+        db.session.add(run)
+        db.session.commit()
+
+        # Start background task
+        from webapp.tasks.enrichment_task import enrich_practices_task
+        task = enrich_practices_task.delay(run.id, limit=limit, max_workers=max_workers)
+
+        # Update run with task ID
+        run.config['celery_task_id'] = task.id
+        db.session.commit()
+
         return jsonify({
-            'error': 'Enrichment already running',
-            'run_id': existing_run.id
-        }), 400
+            'success': True,
+            'run_id': run.id,
+            'task_id': task.id,
+            'status': 'started'
+        })
 
-    # Get parameters
-    data = request.get_json() or {}
-    limit = data.get('limit')
-    max_workers = data.get('max_workers', 6)
-
-    # Create new run
-    run = EnrichmentRun(
-        status='pending',
-        created_by='admin',
-        config={
-            'limit': limit,
-            'max_workers': max_workers
-        }
-    )
-    db.session.add(run)
-    db.session.commit()
-
-    # Start background task
-    from webapp.tasks.enrichment_task import enrich_practices_task
-    task = enrich_practices_task.delay(run.id, limit=limit, max_workers=max_workers)
-
-    # Update run with task ID
-    run.config['celery_task_id'] = task.id
-    db.session.commit()
-
-    return jsonify({
-        'success': True,
-        'run_id': run.id,
-        'task_id': task.id,
-        'status': 'started'
-    })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({
+            'error': f'Failed to start enrichment: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 @bp.route('/enrichment/pause', methods=['POST'])
