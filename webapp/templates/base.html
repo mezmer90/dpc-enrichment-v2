@@ -108,6 +108,27 @@
             min-height: calc(100vh - 73px); /* Full height minus navbar */
         }
 
+        /* Ensure pages always have minimum padding */
+        main > * {
+            padding: 2.5rem;
+        }
+
+        /* Let pages with explicit containers override */
+        main > .page-container,
+        main > .dashboard-container {
+            padding: 2.5rem;
+        }
+
+        @media (max-width: 768px) {
+            main > * {
+                padding: 1.5rem;
+            }
+            main > .page-container,
+            main > .dashboard-container {
+                padding: 1.5rem;
+            }
+        }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
