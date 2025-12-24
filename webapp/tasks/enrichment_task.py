@@ -271,10 +271,18 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
             practices_data: List of practice dictionaries
             ... (other args inherited from parent)
         """
-        # Write practices data to temporary input file
+        # Write practices data to temporary input file in expected format
         import json
+        input_data = {
+            'metadata': {
+                'source': 'database',
+                'run_id': run_id,
+                'total_practices': len(practices_data)
+            },
+            'practices': practices_data
+        }
         with open(input_file, 'w') as f:
-            json.dump(practices_data, f, indent=2)
+            json.dump(input_data, f, indent=2)
 
         # Initialize parent orchestrator
         super().__init__(
