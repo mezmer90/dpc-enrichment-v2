@@ -880,7 +880,8 @@ def check_run(run_id):
                 'total_cost': float(run.total_cost or 0),
                 'started_at': run.started_at.isoformat() if run.started_at else None,
                 'completed_at': run.completed_at.isoformat() if run.completed_at else None,
-                'config': run.config
+                'config': run.config,
+                'statistics': run.statistics
             },
             'practices': practice_details
         })
