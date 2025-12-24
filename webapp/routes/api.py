@@ -444,6 +444,120 @@ def export_json():
     )
 
 
+@bp.route('/admin/load-practices', methods=['POST'])
+def load_practices():
+    """Load practices from JSON file into database (admin only)"""
+    import os
+    import json
+    from datetime import datetime
+
+    # Simple password protection
+    data = request.get_json() or {}
+    password = data.get('password', '')
+
+    from app import APP_PASSWORD
+    if password != APP_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # Path to JSON file
+    json_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'dpc_complete_2763_practices_with_corrected_urls.json'
+    )
+
+    if not os.path.exists(json_file):
+        return jsonify({'error': f'JSON file not found: {json_file}'}), 404
+
+    try:
+        # Load JSON data
+        with open(json_file, 'r', encoding='utf-8') as f:
+            file_data = json.load(f)
+
+        practices_data = file_data.get('practices', [])
+        metadata = file_data.get('metadata', {})
+
+        # Check existing practices
+        existing_ids = {p.practice_id for p in db.session.query(Practice.practice_id).all()}
+
+        # Statistics
+        stats = {
+            'total': len(practices_data),
+            'added': 0,
+            'skipped': 0,
+            'errors': 0,
+            'error_details': []
+        }
+
+        # Load practices
+        for practice_data in practices_data:
+            practice_id = practice_data.get('practice_id')
+
+            if not practice_id:
+                stats['errors'] += 1
+                stats['error_details'].append(f"Missing practice_id: {practice_data.get('practice_name')}")
+                continue
+
+            # Skip if already exists
+            if practice_id in existing_ids:
+                stats['skipped'] += 1
+                continue
+
+            try:
+                # Create Practice instance
+                practice = Practice(
+                    practice_id=practice_id,
+                    practice_name=practice_data.get('practice_name'),
+                    website_url=practice_data.get('website_url'),
+                    address_street=practice_data.get('address_street'),
+                    address_city=practice_data.get('address_city'),
+                    address_state=practice_data.get('address_state'),
+                    address_zip=practice_data.get('address_zip'),
+                    phone=practice_data.get('phone'),
+                    latitude=practice_data.get('latitude'),
+                    longitude=practice_data.get('longitude'),
+                    enrichment_status='pending',
+                    data=practice_data,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+
+                db.session.add(practice)
+                stats['added'] += 1
+
+                # Commit every 100 practices to avoid memory issues
+                if stats['added'] % 100 == 0:
+                    db.session.commit()
+
+            except Exception as e:
+                stats['errors'] += 1
+                stats['error_details'].append(f"{practice_id}: {str(e)}")
+                db.session.rollback()
+                continue
+
+        # Final commit
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'error': f'Failed to commit: {str(e)}',
+                'stats': stats
+            }), 500
+
+        # Return statistics
+        return jsonify({
+            'success': True,
+            'message': 'Practices loaded successfully',
+            'metadata': metadata,
+            'stats': stats,
+            'total_in_db': Practice.query.count()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to load practices: {str(e)}'}), 500
+
+
 @bp.route('/export/enriched', methods=['GET'])
 def export_enriched_only():
     """Export only enriched practice data (AI-extracted fields)"""
