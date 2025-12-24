@@ -50,7 +50,12 @@ def create_app(config_name=None):
         Configured Flask app
     """
     print("DEBUG: create_app() called", file=sys.stderr, flush=True)
-    app = Flask(__name__)
+    # Configure template and static folders to point to webapp directory
+    app = Flask(
+        __name__,
+        template_folder='webapp/templates',
+        static_folder='webapp/static'
+    )
     print("DEBUG: Flask app instance created", file=sys.stderr, flush=True)
 
     # Configuration
