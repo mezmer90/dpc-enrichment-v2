@@ -286,6 +286,9 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
         with open(input_file, 'w') as f:
             json.dump(input_data, f, indent=2)
 
+        # Debug: Log what we wrote
+        logger.info(f"Wrote input file with {len(practices_data)} practices, keys: {list(input_data.keys())}")
+
         # Initialize parent orchestrator
         super().__init__(
             openrouter_api_key=openrouter_api_key,
