@@ -488,6 +488,127 @@
                 </div>
             </div>
         </div>
+
+        <!-- External API Tests -->
+        <div style="margin-top: 3rem; padding-top: 3rem; border-top: 3px solid var(--gray-200);">
+            <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--gray-900); margin-bottom: 1.5rem;">
+                🔌 External API Tests
+            </h2>
+        </div>
+
+        <!-- Test OpenRouter API -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/admin/test-openrouter</span>
+            </div>
+            <p class="endpoint-description">Test OpenRouter AI API connection with a simple request to verify it's working properly.</p>
+
+            <div class="params-section">
+                <div class="section-label">Request Body (JSON):</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">password</span> <span class="param-type">(string, required)</span> - Admin password
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <textarea class="test-input" id="openrouter-body" rows="2" placeholder='{"password": "your-password"}'>{"password": "dpc2025"}</textarea>
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/admin/test-openrouter', 'POST', 'openrouter-body', 'openrouter-response')">
+                        🧪 Test OpenRouter API
+                    </button>
+                </div>
+                <div class="response-box" id="openrouter-response">Click "Test OpenRouter API" to check connection...</div>
+            </div>
+
+            <div class="example-request">
+                <div class="example-title">Expected Success Response:</div>
+                <div class="example-code">
+{
+  "success": true,
+  "message": "OpenRouter API is working",
+  "model_used": "google/gemini-2.0-flash-exp:free",
+  "response": "OK",
+  "test_timestamp": "2025-12-24T10:30:00.000000"
+}
+                </div>
+            </div>
+        </div>
+
+        <!-- Test ScraperAPI -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/admin/test-scraperapi</span>
+            </div>
+            <p class="endpoint-description">Test ScraperAPI connection by fetching example.com to verify the scraping service is working.</p>
+
+            <div class="params-section">
+                <div class="section-label">Request Body (JSON):</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">password</span> <span class="param-type">(string, required)</span> - Admin password
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <textarea class="test-input" id="scraperapi-body" rows="2" placeholder='{"password": "your-password"}'>{"password": "dpc2025"}</textarea>
+                <div class="test-buttons">
+                    <button class="btn btn-primary" onclick="testEndpoint('/api/admin/test-scraperapi', 'POST', 'scraperapi-body', 'scraperapi-response')">
+                        🧪 Test ScraperAPI
+                    </button>
+                </div>
+                <div class="response-box" id="scraperapi-response">Click "Test ScraperAPI" to check connection...</div>
+            </div>
+
+            <div class="example-request">
+                <div class="example-title">Expected Success Response:</div>
+                <div class="example-code">
+{
+  "success": true,
+  "message": "ScraperAPI is working",
+  "test_url": "https://example.com",
+  "response_length": 1256,
+  "contains_expected": true,
+  "test_timestamp": "2025-12-24T10:30:00.000000"
+}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reverse Geocode -->
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/admin/reverse-geocode</span>
+            </div>
+            <p class="endpoint-description">Convert lat/long coordinates to addresses for practices missing address data (processes up to 100 at a time).</p>
+
+            <div class="params-section">
+                <div class="section-label">Request Body (JSON):</div>
+                <div class="param-list">
+                    <div class="param-item">
+                        <span class="param-name">password</span> <span class="param-type">(string, required)</span> - Admin password
+                    </div>
+                    <div class="param-item">
+                        <span class="param-name">limit</span> <span class="param-type">(number, optional)</span> - Max practices to geocode (default: 100)
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <textarea class="test-input" id="geocode-body" rows="3" placeholder='{"password": "your-password", "limit": 10}'>{"password": "dpc2025", "limit": 10}</textarea>
+                <div class="test-buttons">
+                    <button class="btn btn-warning" onclick="testEndpoint('/api/admin/reverse-geocode', 'POST', 'geocode-body', 'geocode-response')">
+                        🧪 Test Reverse Geocode (slow - 1 req/sec)
+                    </button>
+                </div>
+                <div class="response-box" id="geocode-response">Click to test reverse geocoding (will take ~10 seconds for 10 practices)...</div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

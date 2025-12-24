@@ -444,6 +444,126 @@ def export_json():
     )
 
 
+@bp.route('/admin/test-openrouter', methods=['POST'])
+def test_openrouter():
+    """Test OpenRouter API connection and response (admin only)"""
+    from datetime import datetime
+
+    # Simple password protection
+    data = request.get_json() or {}
+    password = data.get('password', '')
+
+    from app import APP_PASSWORD
+    if password != APP_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        import os
+        import httpx
+
+        api_key = os.getenv('OPENROUTER_API_KEY')
+        if not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'OPENROUTER_API_KEY not configured'
+            }), 500
+
+        # Test with a simple prompt
+        response = httpx.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://dpc-enrichment.app',
+                'X-Title': 'DPC Enrichment System'
+            },
+            json={
+                'model': 'google/gemini-2.0-flash-exp:free',
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': 'Respond with just "OK" if you can read this.'
+                    }
+                ],
+                'max_tokens': 10
+            },
+            timeout=30.0
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        return jsonify({
+            'success': True,
+            'message': 'OpenRouter API is working',
+            'model_used': result.get('model'),
+            'response': result.get('choices', [{}])[0].get('message', {}).get('content'),
+            'test_timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'OpenRouter API test failed: {str(e)}',
+            'test_timestamp': datetime.utcnow().isoformat()
+        }), 500
+
+
+@bp.route('/admin/test-scraperapi', methods=['POST'])
+def test_scraperapi():
+    """Test ScraperAPI connection (admin only)"""
+    from datetime import datetime
+
+    # Simple password protection
+    data = request.get_json() or {}
+    password = data.get('password', '')
+
+    from app import APP_PASSWORD
+    if password != APP_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        import os
+        import httpx
+
+        api_key = os.getenv('SCRAPERAPI_KEY')
+        if not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'SCRAPERAPI_KEY not configured'
+            }), 500
+
+        # Test with example.com
+        test_url = 'https://example.com'
+        response = httpx.get(
+            'https://api.scraperapi.com',
+            params={
+                'api_key': api_key,
+                'url': test_url
+            },
+            timeout=30.0
+        )
+
+        response.raise_for_status()
+        content = response.text
+
+        return jsonify({
+            'success': True,
+            'message': 'ScraperAPI is working',
+            'test_url': test_url,
+            'response_length': len(content),
+            'contains_expected': 'Example Domain' in content,
+            'test_timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'ScraperAPI test failed: {str(e)}',
+            'test_timestamp': datetime.utcnow().isoformat()
+        }), 500
+
+
 @bp.route('/admin/reverse-geocode', methods=['POST'])
 def reverse_geocode_addresses():
     """Reverse geocode practices with lat/long but missing addresses (admin only)"""
