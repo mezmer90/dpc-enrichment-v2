@@ -578,50 +578,62 @@ class EnrichmentOrchestrator:
         Returns:
             List of practice dicts to process
         """
-        # Load from input file
+        # Load from input file (raw practice data)
         practices, metadata = DataStorage.load_enriched(self.input_file)
-
         logger.info(f"Loaded {len(practices)} practices from {self.input_file.name}")
 
-        # Filter for only partial enrichment practices
-        partial_practices = [p for p in practices if p.get('enrichment_level') == 'partial']
-        logger.info(f"Filtered to {len(partial_practices)} practices with partial enrichment")
-        practices = partial_practices
+        # Try to load previously enriched practices from output file (if exists)
+        # This preserves work from previous runs
+        previously_enriched = []
+        if self.output_file.exists():
+            try:
+                previously_enriched, _ = DataStorage.load_enriched(self.output_file)
+                logger.info(f"Found {len(previously_enriched)} previously enriched practices in output file")
+            except Exception as e:
+                logger.warning(f"Could not load previous enriched data: {e}")
 
-        # Auto-detect resume mode: ONLY resume if progress file exists AND has data
+        # Determine which practices to process based on progress tracker
         progress_file_exists = self.progress_file.exists()
 
         if progress_file_exists:
             # Load progress tracker
             self.progress_tracker.load()
 
-            # Get pending practices
+            # Get practice statuses
             pending_ids = self.progress_tracker.get_pending()
             failed_ids = self.progress_tracker.get_failed()
             successful_ids = self.progress_tracker.get_successful()
 
-            # Only resume if we actually have some progress
+            # Only resume if we actually have some progress (not just initialized)
             if successful_ids or failed_ids:
                 logger.info(
-                    f"[RESUME] Auto-resume detected: {len(successful_ids)} already completed, "
-                    f"{len(pending_ids)} pending, {len(failed_ids)} failed"
+                    f"[RESUME] Auto-resume detected: {len(successful_ids)} successful, "
+                    f"{len(failed_ids)} failed, {len(pending_ids)} pending"
                 )
 
-                # Combine pending and failed for retry
-                to_process_ids = set(pending_ids + failed_ids)
-
-                practices = [
-                    p for p in practices
-                    if p['practice_id'] in to_process_ids
+                # Keep only successfully enriched practices (exclude failed ones for retry)
+                to_retry_ids = set(failed_ids)
+                kept_enriched = [
+                    p for p in previously_enriched
+                    if p['practice_id'] not in to_retry_ids
                 ]
 
+                async with self._enriched_lock:
+                    self._enriched_practices = kept_enriched
+
                 logger.info(
-                    f"Processing {len(practices)} remaining practices "
-                    f"({len(pending_ids)} pending + {len(failed_ids)} retries)"
+                    f"Kept {len(kept_enriched)} successful practices, "
+                    f"will retry {len(to_retry_ids)} failed practices"
                 )
+
+                # Process pending + failed practices
+                to_process_ids = set(pending_ids + failed_ids)
+                practices = [p for p in practices if p['practice_id'] in to_process_ids]
+
+                logger.info(f"Processing {len(practices)} remaining practices")
             else:
-                # Progress file exists but is empty - start fresh
-                logger.info("Progress file exists but is empty, starting fresh")
+                # Progress file exists but empty (no completed/failed yet) - treat as fresh
+                logger.info("Progress file exists but no progress yet, treating as fresh run")
                 practice_ids = [p['practice_id'] for p in practices]
                 self.progress_tracker.initialize_practices(practice_ids)
         else:
