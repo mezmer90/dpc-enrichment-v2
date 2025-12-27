@@ -117,15 +117,34 @@ Return ONLY the JSON, no other text."""
             # Extract response
             content = response.choices[0].message.content.strip()
 
-            # Parse JSON from response
-            # Remove markdown code blocks if present
-            if content.startswith('```'):
-                content = content.split('```')[1]
-                if content.startswith('json'):
-                    content = content[4:]
-                content = content.strip()
+            # Parse JSON from response - handle markdown code blocks
+            # Gemini often wraps JSON in markdown, e.g.: ```json\n{...}\n```
+            json_content = content
 
-            result = json.loads(content)
+            # Try to extract JSON from markdown code block
+            if '```json' in content:
+                # Find the JSON block
+                start_marker = '```json'
+                end_marker = '```'
+                start_idx = content.find(start_marker)
+                if start_idx != -1:
+                    # Get content after ```json
+                    json_start = start_idx + len(start_marker)
+                    remaining = content[json_start:]
+                    # Find the closing ```
+                    end_idx = remaining.find(end_marker)
+                    if end_idx != -1:
+                        json_content = remaining[:end_idx].strip()
+            elif content.startswith('```'):
+                # Fallback: handle generic code blocks
+                parts = content.split('```')
+                if len(parts) >= 2:
+                    json_content = parts[1].strip()
+                    # Remove language identifier if present (e.g., "json")
+                    if json_content.startswith('json'):
+                        json_content = json_content[4:].strip()
+
+            result = json.loads(json_content)
 
             # Calculate cost
             input_tokens = response.usage.prompt_tokens

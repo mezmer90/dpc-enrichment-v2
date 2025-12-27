@@ -19,6 +19,10 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add webapp directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

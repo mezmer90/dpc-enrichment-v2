@@ -425,6 +425,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/json-formatter.js') }}"></script>
 <script>
     function applyFilters() {
         const search = document.getElementById('searchInput').value;
@@ -520,7 +521,7 @@
                 ${practice.data ? `
                     <div class="detail-section">
                         <div class="detail-label">Enriched Data (${fieldCount} fields)</div>
-                        <div class="json-viewer-full">${JSON.stringify(practice.data, null, 2)}</div>
+                        <div style="max-height: 600px; overflow-y: auto;">${formatPracticeData(practice.data)}</div>
                     </div>
                 ` : ''}
             `;

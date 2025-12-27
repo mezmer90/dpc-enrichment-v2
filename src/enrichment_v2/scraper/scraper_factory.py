@@ -140,7 +140,7 @@ class ScraperFactory:
             ScraperMethod.PLAYWRIGHT,     # 2nd - Proven working (8/9 successes)
             ScraperMethod.REQUESTS,       # 3rd - Fast fallback (1/9 successes)
             ScraperMethod.CRAWL4AI,       # 4th - User preference
-            ScraperMethod.SELENIUM,       # 5th - Has driver issues
+            # ScraperMethod.SELENIUM,       # 5th - Has driver issues
         ]
 
         sorted_scrapers = []

@@ -6,15 +6,9 @@ Entry point for Railway deployment.
 
 import os
 from flask import Flask, session, redirect, url_for, request, jsonify, render_template
-from flask_sqlalchemy import SQLAlchemy
 from pathlib import Path
 from functools import wraps
-
-# Initialize extensions
-db = SQLAlchemy()
-
-# Simple password protection
-APP_PASSWORD = os.getenv('APP_PASSWORD', 'dpc2025')  # Change in production!
+from webapp.extensions import db
 
 
 def require_password(f):

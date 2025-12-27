@@ -441,6 +441,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/json-formatter.js') }}"></script>
 <script>
     let eventSource = null;
     let stats = { total: 0, completed: 0, failed: 0, skipped: 0, cost: 0 };
@@ -626,49 +627,14 @@
         document.getElementById('qualityScore').className = `quality-score quality-${qualityScore}`;
         document.getElementById('qualityScore').textContent = qualityText;
 
-        // Format JSON for display
+        // Format data in user-friendly way
         preview.innerHTML = `
-            <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--gray-600);">
-                <strong>${data.practice_name}</strong><br>
-                ${fieldCount} fields extracted
+            <div style="margin-bottom: 1.5rem;">
+                <strong style="font-size: 1.1rem; color: var(--gray-900);">${data.practice_name}</strong><br>
+                <span style="font-size: 0.875rem; color: var(--gray-600);">${fieldCount} fields extracted</span>
             </div>
-            <div class="json-viewer">${formatJSON(practiceData)}</div>
+            ${formatPracticeData(practiceData)}
         `;
-    }
-
-    function formatJSON(obj, indent = 0) {
-        const spaces = '  '.repeat(indent);
-        let html = '';
-
-        if (typeof obj === 'object' && obj !== null) {
-            html += '{\n';
-            const keys = Object.keys(obj);
-            keys.forEach((key, index) => {
-                if (key.startsWith('_')) return; // Skip metadata
-
-                html += `${spaces}  <span class="json-key">"${key}"</span>: `;
-
-                const value = obj[key];
-                if (typeof value === 'string') {
-                    html += `<span class="json-string">"${value}"</span>`;
-                } else if (typeof value === 'number') {
-                    html += `<span class="json-number">${value}</span>`;
-                } else if (typeof value === 'boolean') {
-                    html += `<span class="json-boolean">${value}</span>`;
-                } else if (Array.isArray(value)) {
-                    html += `[${value.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ')}]`;
-                } else if (value === null) {
-                    html += 'null';
-                } else {
-                    html += formatJSON(value, indent + 1);
-                }
-
-                html += index < keys.length - 1 ? ',\n' : '\n';
-            });
-            html += `${spaces}}`;
-        }
-
-        return html;
     }
 
     // Initialize on page load
@@ -683,6 +649,7 @@
                     stats.total = data.current_run.total_practices || 0;
                     stats.completed = data.current_run.successful || 0;
                     stats.failed = data.current_run.failed || 0;
+                    stats.skipped = data.current_run.skipped || 0;
                     stats.cost = parseFloat(data.current_run.total_cost || 0);
                     updateProgressBar();
                 }

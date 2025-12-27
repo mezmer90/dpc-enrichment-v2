@@ -15,7 +15,7 @@ from celery import Task
 from sqlalchemy.orm import Session
 
 from . import celery_app
-from app import db
+from webapp.extensions import db
 from webapp.models import Practice, EnrichmentRun, APIStatus
 from webapp.services.progress_service import (
     publish_progress,
@@ -103,6 +103,14 @@ async def _enrich_practices_async(
     Returns:
         Final statistics dictionary
     """
+    import sys
+    from pathlib import Path
+
+    # Add project root to path if not already there
+    project_root = Path(__file__).parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
     from app import create_app
 
     # Create Flask app context
@@ -186,6 +194,31 @@ async def _enrich_practices_async(
                 practices_data=practices_data
             )
 
+            # Initialize stats cache with total_practices before starting
+            # This ensures the progress tab shows correct total even before first practice completes
+            initial_stats = {
+                'total_practices': total_practices,
+                'successful': 0,
+                'failed': 0,
+                'skipped': 0,
+                'success_rate': '0.0%',
+                'total_cost': '$0.00'
+            }
+            update_stats_cache(run_id, initial_stats)
+
+            # Publish initial stats via SSE
+            publish_progress(
+                ProgressEvent.STATS_UPDATE,
+                run_id,
+                {
+                    'total': total_practices,
+                    'completed': 0,
+                    'failed': 0,
+                    'skipped': 0,
+                    'cost': 0
+                }
+            )
+
             # Run enrichment
             stats = await orchestrator.run()
 
@@ -194,7 +227,14 @@ async def _enrich_practices_async(
             run.completed_at = datetime.utcnow()
             run.successful = stats['successful']
             run.failed = stats['failed']
-            run.total_cost = stats.get('total_cost', 0)
+
+            # Parse total_cost - handle both numeric and formatted string values
+            total_cost = stats.get('total_cost', 0)
+            if isinstance(total_cost, str):
+                # Remove $ and convert to float
+                total_cost = float(total_cost.replace('$', '').replace(',', ''))
+            run.total_cost = total_cost
+
             run.statistics = stats
             db.session.commit()
 
@@ -365,8 +405,55 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
         try:
             await super()._enrich_practice(practice)
 
+            # Check the practice status in progress tracker
+            # (parent method may return early without exception if scraping failed)
+            from src.enrichment_v2.utils.progress import PracticeStatus
+            actual_status = self.progress_tracker.get_status(practice_id)
+
+            # If the practice failed or was skipped, update database accordingly
+            if actual_status == PracticeStatus.FAILED:
+                if db_practice:
+                    db_practice.enrichment_status = 'failed'
+                    progress_info = self.progress_tracker.get_progress(practice_id)
+                    db_practice.data = {'error': progress_info.error if progress_info else 'Enrichment failed'}
+                    self.db_session.commit()
+                    logger.info(f"Marked practice {practice_id} as failed (from progress tracker)")
+
+                # Publish failure event
+                publish_progress(
+                    ProgressEvent.PRACTICE_FAILED,
+                    self.run_id,
+                    {
+                        'practice_id': practice_id,
+                        'practice_name': practice.get('practice_name', ''),
+                        'error': progress_info.error if progress_info else 'Scraping failed',
+                        'error_type': 'ScrapingError'
+                    }
+                )
+                return
+
+            elif actual_status == PracticeStatus.SKIPPED:
+                if db_practice:
+                    db_practice.enrichment_status = 'skipped'
+                    progress_info = self.progress_tracker.get_progress(practice_id)
+                    db_practice.data = {'reason': progress_info.error if progress_info else 'Practice skipped'}
+                    self.db_session.commit()
+                    logger.info(f"Marked practice {practice_id} as skipped (from progress tracker)")
+
+                # Publish skipped event
+                publish_progress(
+                    ProgressEvent.PRACTICE_SKIPPED,
+                    self.run_id,
+                    {
+                        'practice_id': practice_id,
+                        'practice_name': practice.get('practice_name', ''),
+                        'error': progress_info.error if progress_info else 'Practice skipped'
+                    }
+                )
+                return
+
             # If successful, update database
-            if db_practice:
+            if db_practice and actual_status == PracticeStatus.SUCCESS:
                 # Get enriched data from the latest saved practice
                 enriched_data = None
                 async with self._enriched_lock:
@@ -410,9 +497,21 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
         except Exception as e:
             # Update practice as failed in database
             if db_practice:
-                db_practice.enrichment_status = 'failed'
-                db_practice.data = {'error': str(e)}
-                self.db_session.commit()
+                try:
+                    # Rollback any pending transaction to ensure clean state
+                    self.db_session.rollback()
+
+                    # Refresh the practice object from database
+                    self.db_session.refresh(db_practice)
+
+                    # Update status to failed
+                    db_practice.enrichment_status = 'failed'
+                    db_practice.data = {'error': str(e)}
+                    self.db_session.commit()
+                    logger.info(f"Marked practice {practice_id} as failed in database")
+                except Exception as db_error:
+                    logger.error(f"Failed to update practice status in database: {db_error}")
+                    self.db_session.rollback()
 
             # Publish failure event
             publish_progress(
@@ -428,3 +527,68 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
 
             # Re-raise to let parent handle it
             raise
+
+    async def run(self):
+        """
+        Override run method to sync all practice statuses after completion.
+        """
+        # Run parent enrichment
+        result = await super().run()
+
+        # After enrichment, sync all practice statuses from progress tracker to database
+        try:
+            self._sync_practice_statuses()
+        except Exception as e:
+            logger.error(f"Failed to sync practice statuses: {e}")
+
+        return result
+
+    def _sync_practice_statuses(self):
+        """
+        Sync practice statuses from progress tracker to database.
+
+        This ensures skipped/failed practices that weren't caught
+        in the main enrichment loop get their statuses updated.
+        """
+        logger.info("Syncing practice statuses from progress tracker to database...")
+
+        # Get progress tracker state
+        from src.enrichment_v2.utils.progress import ProgressTracker, PracticeStatus
+
+        tracker = ProgressTracker(self.progress_file)
+
+        # Map progress tracker status to database status
+        status_mapping = {
+            PracticeStatus.SUCCESS: 'completed',
+            PracticeStatus.FAILED: 'failed',
+            PracticeStatus.SKIPPED: 'skipped',
+            PracticeStatus.IN_PROGRESS: 'in_progress',
+            PracticeStatus.PENDING: 'pending'
+        }
+
+        synced = 0
+
+        # Iterate through all practices in the tracker
+        with tracker._lock:
+            for practice_id, progress in tracker._practices.items():
+                db_practice = self.db_session.query(Practice).filter_by(
+                    practice_id=practice_id
+                ).first()
+
+                if not db_practice:
+                    continue
+
+                status = progress.status
+                db_status = status_mapping.get(status)
+
+                if db_status and db_practice.enrichment_status != db_status:
+                    # Don't overwrite completed status
+                    if db_practice.enrichment_status != 'completed':
+                        db_practice.enrichment_status = db_status
+                        synced += 1
+
+        if synced > 0:
+            self.db_session.commit()
+            logger.info(f"Synced {synced} practice statuses to database")
+        else:
+            logger.info("All practice statuses already in sync")

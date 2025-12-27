@@ -2,9 +2,9 @@
 Main web routes - Dashboard and UI pages
 """
 
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash, current_app
 from webapp.models import EnrichmentRun, Practice, APIStatus
-from app import db, APP_PASSWORD
+from webapp.extensions import db
 
 bp = Blueprint('main', __name__)
 
@@ -20,7 +20,7 @@ def login():
     if request.method == 'POST':
         password = request.form.get('password', '')
 
-        if password == APP_PASSWORD:
+        if password == current_app.config['APP_PASSWORD']:
             session['authenticated'] = True
             session.permanent = True  # Keep session across browser restarts
             return redirect(url_for('main.index'))

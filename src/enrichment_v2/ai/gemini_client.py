@@ -133,19 +133,40 @@ class GeminiClient:
             # Parse response
             content = response.choices[0].message.content
 
-            # Try to parse as JSON
+            # Parse JSON from response - handle markdown code blocks robustly
+            # Gemini often wraps JSON in markdown, sometimes with explanatory text before
+            json_content = content.strip()
+
+            # Try to extract JSON from markdown code block
+            if '```json' in json_content:
+                # Find the JSON block
+                start_marker = '```json'
+                end_marker = '```'
+                start_idx = json_content.find(start_marker)
+                if start_idx != -1:
+                    # Get content after ```json
+                    json_start = start_idx + len(start_marker)
+                    remaining = json_content[json_start:]
+                    # Find the closing ```
+                    end_idx = remaining.find(end_marker)
+                    if end_idx != -1:
+                        json_content = remaining[:end_idx].strip()
+            elif json_content.startswith('```'):
+                # Fallback: handle generic code blocks
+                parts = json_content.split('```')
+                if len(parts) >= 2:
+                    json_content = parts[1].strip()
+                    # Remove language identifier if present
+                    if json_content.startswith('json'):
+                        json_content = json_content[4:].strip()
+
+            # Parse the extracted JSON
             try:
-                extracted = json.loads(content)
-            except json.JSONDecodeError:
-                # Sometimes model wraps JSON in markdown code blocks
-                content = content.strip()
-                if content.startswith('```json'):
-                    content = content[7:]  # Remove ```json
-                if content.startswith('```'):
-                    content = content[3:]  # Remove ```
-                if content.endswith('```'):
-                    content = content[:-3]  # Remove ```
-                extracted = json.loads(content.strip())
+                extracted = json.loads(json_content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse Gemini response as JSON: {e}")
+                logger.error(f"Attempted to parse: {json_content[:500]}...")
+                raise
 
             # Add metadata
             extracted['_enrichment_metadata'] = {

@@ -6,6 +6,10 @@ Background task processing for DPC enrichment.
 
 from celery import Celery
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize Celery app
 # Handle empty REDIS_URL by falling back to default

@@ -5,7 +5,7 @@ REST API routes for enrichment control
 from flask import Blueprint, jsonify, request, Response, send_file
 from webapp.models import EnrichmentRun, Practice, APIStatus
 from webapp.services.progress_service import set_run_control
-from app import db
+from webapp.extensions import db
 import json
 import csv
 from io import StringIO, BytesIO
@@ -156,20 +156,57 @@ def get_status():
             'current_run': None
         })
 
-    return jsonify({
-        'status': current_run.status,
-        'current_run': {
-            'id': current_run.id,
+    # Get cached stats from Redis (updated in real-time during enrichment)
+    from webapp.services.progress_service import get_current_stats
+    cached_stats = get_current_stats(current_run.id)
+
+    # Use cached stats if available (for running enrichment), otherwise use database
+    if cached_stats and cached_stats.get('total_practices', 0) > 0:
+        # Parse total_cost from formatted string (e.g., "$0.00")
+        total_cost_str = cached_stats.get('total_cost', '$0.00')
+        if isinstance(total_cost_str, str):
+            total_cost = float(total_cost_str.replace('$', '').replace(',', ''))
+        else:
+            total_cost = float(total_cost_str)
+
+        # Parse success_rate from formatted string (e.g., "50.0%")
+        success_rate_str = cached_stats.get('success_rate', '0.0%')
+        if isinstance(success_rate_str, str):
+            success_rate = float(success_rate_str.replace('%', ''))
+        else:
+            success_rate = float(success_rate_str)
+
+        # Use real-time cached stats
+        return jsonify({
             'status': current_run.status,
-            'total_practices': current_run.total_practices,
-            'successful': current_run.successful,
-            'failed': current_run.failed,
-            'skipped': current_run.skipped,
-            'success_rate': current_run.success_rate,
-            'total_cost': float(current_run.total_cost or 0),
-            'started_at': current_run.started_at.isoformat() if current_run.started_at else None
-        }
-    })
+            'current_run': {
+                'id': current_run.id,
+                'status': current_run.status,
+                'total_practices': cached_stats.get('total_practices', 0),
+                'successful': cached_stats.get('successful', 0),
+                'failed': cached_stats.get('failed', 0),
+                'skipped': cached_stats.get('skipped', 0),
+                'success_rate': success_rate,
+                'total_cost': total_cost,
+                'started_at': current_run.started_at.isoformat() if current_run.started_at else None
+            }
+        })
+    else:
+        # Fallback to database stats
+        return jsonify({
+            'status': current_run.status,
+            'current_run': {
+                'id': current_run.id,
+                'status': current_run.status,
+                'total_practices': current_run.total_practices,
+                'successful': current_run.successful,
+                'failed': current_run.failed,
+                'skipped': current_run.skipped,
+                'success_rate': current_run.success_rate,
+                'total_cost': float(current_run.total_cost or 0),
+                'started_at': current_run.started_at.isoformat() if current_run.started_at else None
+            }
+        })
 
 
 @bp.route('/enrichment/progress/stream', methods=['GET'])

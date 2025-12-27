@@ -3,7 +3,7 @@ Database Models for DPC Enrichment Web App
 """
 
 from datetime import datetime
-from app import db
+from webapp.extensions import db
 
 
 class Practice(db.Model):

@@ -12,6 +12,9 @@ class Config:
     # Flask
     SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+    # Authentication
+    APP_PASSWORD = os.getenv('APP_PASSWORD', 'dpc2025')
+
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DATABASE_URL',
@@ -22,9 +25,6 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,  # Verify connections before using
         'pool_recycle': 300,    # Recycle connections after 5 minutes
-        'connect_args': {
-            'connect_timeout': 10  # 10 second timeout for connections
-        }
     }
 
     # Redis (for Celery)
