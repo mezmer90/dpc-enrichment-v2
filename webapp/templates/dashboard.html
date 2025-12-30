@@ -280,6 +280,119 @@
             gap: 0.75rem;
         }
     }
+
+    /* Enrichment Modes Grid */
+    .enrichment-modes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .mode-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        border: 3px solid;
+        transition: all 0.3s ease;
+    }
+
+    .mode-card.pending {
+        border-color: var(--info);
+    }
+
+    .mode-card.failed {
+        border-color: var(--danger);
+    }
+
+    .mode-card.skipped {
+        border-color: var(--warning);
+    }
+
+    .mode-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12);
+    }
+
+    .mode-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .mode-icon {
+        font-size: 2.5rem;
+    }
+
+    .mode-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+    .mode-description {
+        color: var(--gray-600);
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .mode-stats {
+        background: var(--gray-50);
+        padding: 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        font-weight: 700;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+
+    .mode-stats.pending {
+        color: var(--info);
+        background: linear-gradient(135deg, #dbeafe 0%, #f0f9ff 100%);
+    }
+
+    .mode-stats.failed {
+        color: var(--danger);
+        background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+    }
+
+    .mode-stats.skipped {
+        color: var(--warning);
+        background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+    }
+
+    .mode-card .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .mode-card button {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-top: 1rem;
+    }
+
+    .mode-card button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+        .enrichment-modes {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .enrichment-modes {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -352,23 +465,101 @@
                 <a href="/progress" class="btn btn-primary">📊 View Progress</a>
             </div>
         {% else %}
-            <form id="startForm" onsubmit="startEnrichment(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="limit">Limit (optional)</label>
-                        <input type="number" id="limit" name="limit" placeholder="All practices" min="1">
+            <!-- Three separate enrichment modes -->
+            <div class="enrichment-modes">
+                <!-- Mode 1: Start New (Pending Only) -->
+                <div class="mode-card pending">
+                    <div class="mode-header">
+                        <div class="mode-icon">🆕</div>
+                        <div class="mode-title">Start New</div>
                     </div>
-                    <div class="form-group">
-                        <label for="max_workers">Max Workers</label>
-                        <input type="number" id="max_workers" name="max_workers" value="6" min="1" max="20">
+                    <p class="mode-description">
+                        Process practices that haven't been enriched yet
+                    </p>
+                    <div class="mode-stats pending">
+                        {{ pending }} practices available
                     </div>
+
+                    <form id="pending-form" onsubmit="startEnrichment(event, 'pending')">
+                        <div class="form-group">
+                            <label for="pending-limit">Limit (optional)</label>
+                            <input type="number" id="pending-limit" class="limit-input"
+                                   placeholder="All pending" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="pending-workers">Max Workers</label>
+                            <input type="number" id="pending-workers" class="max-workers-input"
+                                   value="6" min="1" max="20" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary"
+                                {% if pending == 0 %}disabled{% endif %}>
+                            🚀 Start New
+                        </button>
+                    </form>
                 </div>
 
-                <div class="control-buttons">
-                    <button type="submit" class="btn btn-primary">🚀 Start Enrichment</button>
-                    <button type="button" class="btn btn-secondary" onclick="testSmallBatch()">🧪 Test (10 practices)</button>
+                <!-- Mode 2: Retry Failed -->
+                <div class="mode-card failed">
+                    <div class="mode-header">
+                        <div class="mode-icon">❌</div>
+                        <div class="mode-title">Retry Failed</div>
+                    </div>
+                    <p class="mode-description">
+                        Re-process practices that previously failed
+                    </p>
+                    <div class="mode-stats failed">
+                        {{ failed }} practices to retry
+                    </div>
+
+                    <form id="failed-form" onsubmit="startEnrichment(event, 'failed')">
+                        <div class="form-group">
+                            <label for="failed-limit">Limit (optional)</label>
+                            <input type="number" id="failed-limit" class="limit-input"
+                                   placeholder="All failed" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="failed-workers">Max Workers</label>
+                            <input type="number" id="failed-workers" class="max-workers-input"
+                                   value="4" min="1" max="20" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger"
+                                {% if failed == 0 %}disabled{% endif %}>
+                            🔄 Retry Failed
+                        </button>
+                    </form>
                 </div>
-            </form>
+
+                <!-- Mode 3: Retry Skipped -->
+                <div class="mode-card skipped">
+                    <div class="mode-header">
+                        <div class="mode-icon">⏭️</div>
+                        <div class="mode-title">Retry Skipped</div>
+                    </div>
+                    <p class="mode-description">
+                        Re-process practices that were skipped
+                    </p>
+                    <div class="mode-stats skipped">
+                        {{ skipped }} practices to retry
+                    </div>
+
+                    <form id="skipped-form" onsubmit="startEnrichment(event, 'skipped')">
+                        <div class="form-group">
+                            <label for="skipped-limit">Limit (optional)</label>
+                            <input type="number" id="skipped-limit" class="limit-input"
+                                   placeholder="All skipped" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="skipped-workers">Max Workers</label>
+                            <input type="number" id="skipped-workers" class="max-workers-input"
+                                   value="6" min="1" max="20" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning"
+                                {% if skipped == 0 %}disabled{% endif %}>
+                            ⏭️ Retry Skipped
+                        </button>
+                    </form>
+                </div>
+            </div>
         {% endif %}
     </div>
 
@@ -405,26 +596,45 @@
 
 {% block extra_scripts %}
 <script>
-    async function startEnrichment(event) {
+    async function startEnrichment(event, mode) {
         event.preventDefault();
 
-        const limit = document.getElementById('limit').value;
-        const max_workers = document.getElementById('max_workers').value;
+        // Get form elements
+        const form = event.target;
+        const limitInput = form.querySelector('.limit-input');
+        const workersInput = form.querySelector('.max-workers-input');
+
+        const limit = limitInput.value ? parseInt(limitInput.value) : null;
+        const max_workers = parseInt(workersInput.value);
+
+        // Map mode to retry_statuses
+        const statusMapping = {
+            'pending': ['pending'],
+            'failed': ['failed'],
+            'skipped': ['skipped']
+        };
+
+        const modeLabels = {
+            'pending': 'New',
+            'failed': 'Failed',
+            'skipped': 'Skipped'
+        };
 
         try {
             const response = await fetch('/api/enrichment/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    limit: limit ? parseInt(limit) : null,
-                    max_workers: parseInt(max_workers)
+                    limit: limit,
+                    max_workers: max_workers,
+                    retry_statuses: statusMapping[mode]
                 })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                showNotification('Enrichment started successfully!', 'success');
+                showNotification(`${modeLabels[mode]} enrichment started successfully!`, 'success');
                 setTimeout(() => window.location.href = '/progress', 1000);
             } else {
                 showNotification(data.error || 'Failed to start enrichment', 'error');
@@ -484,11 +694,6 @@
         } catch (error) {
             showNotification('Error stopping enrichment: ' + error.message, 'error');
         }
-    }
-
-    function testSmallBatch() {
-        document.getElementById('limit').value = '10';
-        document.getElementById('startForm').dispatchEvent(new Event('submit'));
     }
 </script>
 {% endblock %}

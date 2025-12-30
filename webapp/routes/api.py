@@ -33,6 +33,16 @@ def start_enrichment():
         data = request.get_json() or {}
         limit = data.get('limit')
         max_workers = data.get('max_workers', 6)
+        retry_statuses = data.get('retry_statuses', ['pending', 'failed', 'skipped'])
+
+        # Validate retry_statuses
+        VALID_STATUSES = ['pending', 'failed', 'skipped']
+        if not isinstance(retry_statuses, list) or not retry_statuses:
+            return jsonify({'error': 'retry_statuses must be a non-empty list'}), 400
+
+        invalid = [s for s in retry_statuses if s not in VALID_STATUSES]
+        if invalid:
+            return jsonify({'error': f'Invalid statuses: {invalid}'}), 400
 
         # Create new run
         run = EnrichmentRun(
@@ -40,7 +50,8 @@ def start_enrichment():
             created_by='admin',
             config={
                 'limit': limit,
-                'max_workers': max_workers
+                'max_workers': max_workers,
+                'retry_statuses': retry_statuses
             }
         )
         db.session.add(run)
@@ -48,7 +59,7 @@ def start_enrichment():
 
         # Start background task
         from webapp.tasks.enrichment_task import enrich_practices_task
-        task = enrich_practices_task.delay(run.id, limit=limit, max_workers=max_workers)
+        task = enrich_practices_task.delay(run.id, limit=limit, max_workers=max_workers, retry_statuses=retry_statuses)
 
         # Update run with task ID
         run.config['celery_task_id'] = task.id

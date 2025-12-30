@@ -53,7 +53,8 @@ def enrich_practices_task(
     self,
     run_id: int,
     limit: Optional[int] = None,
-    max_workers: Optional[int] = None
+    max_workers: Optional[int] = None,
+    retry_statuses: Optional[List[str]] = None
 ) -> Dict:
     """
     Celery task to enrich DPC practices.
@@ -62,6 +63,7 @@ def enrich_practices_task(
         run_id: Enrichment run ID
         limit: Optional limit on number of practices to process
         max_workers: Number of concurrent workers (default from config)
+        retry_statuses: List of statuses to process (default: ['pending', 'failed', 'skipped'])
 
     Returns:
         Final statistics dictionary
@@ -76,7 +78,8 @@ def enrich_practices_task(
                 task=self,
                 run_id=run_id,
                 limit=limit,
-                max_workers=max_workers or MAX_WORKERS
+                max_workers=max_workers or MAX_WORKERS,
+                retry_statuses=retry_statuses
             )
         )
         return result
@@ -89,7 +92,8 @@ async def _enrich_practices_async(
     task: Task,
     run_id: int,
     limit: Optional[int],
-    max_workers: int
+    max_workers: int,
+    retry_statuses: Optional[List[str]] = None
 ) -> Dict:
     """
     Async enrichment logic with database integration.
@@ -98,6 +102,7 @@ async def _enrich_practices_async(
         task: Celery task instance
         run_id: Enrichment run ID
         limit: Optional limit on number of practices
+        retry_statuses: List of statuses to process
         max_workers: Number of concurrent workers
 
     Returns:
@@ -127,6 +132,10 @@ async def _enrich_practices_async(
         run.started_at = datetime.utcnow()
         db.session.commit()
 
+        # Default to all statuses if not specified (backward compatibility)
+        if retry_statuses is None:
+            retry_statuses = ['pending', 'failed', 'skipped']
+
         # Publish start event
         publish_progress(
             ProgressEvent.STARTED,
@@ -134,14 +143,15 @@ async def _enrich_practices_async(
             {
                 'run_id': run_id,
                 'limit': limit,
-                'max_workers': max_workers
+                'max_workers': max_workers,
+                'retry_statuses': retry_statuses
             }
         )
 
         try:
             # Get practices to enrich
             practices_query = db.session.query(Practice).filter(
-                Practice.enrichment_status.in_(['pending', 'failed', 'skipped'])
+                Practice.enrichment_status.in_(retry_statuses)
             )
 
             if limit:
@@ -152,6 +162,19 @@ async def _enrich_practices_async(
 
             run.total_practices = total_practices
             db.session.commit()
+
+            # Check if any practices exist for the requested statuses
+            if total_practices == 0:
+                logger.warning(f"No practices found with status: {', '.join(retry_statuses)}")
+                run.status = 'completed'
+                run.completed_at = datetime.utcnow()
+                db.session.commit()
+
+                return {
+                    'success': False,
+                    'error': f'No practices found with status: {", ".join(retry_statuses)}',
+                    'total_practices': 0
+                }
 
             logger.info(f"Starting enrichment run {run_id}: {total_practices} practices")
 
