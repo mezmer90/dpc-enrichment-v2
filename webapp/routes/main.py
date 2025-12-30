@@ -51,6 +51,7 @@ def index():
     completed = Practice.query.filter_by(enrichment_status='completed').count()
     failed = Practice.query.filter_by(enrichment_status='failed').count()
     pending = Practice.query.filter_by(enrichment_status='pending').count()
+    skipped = Practice.query.filter_by(enrichment_status='skipped').count()
 
     # Get API status
     api_statuses = APIStatus.query.all()
@@ -67,6 +68,7 @@ def index():
         completed=completed,
         failed=failed,
         pending=pending,
+        skipped=skipped,
         api_statuses=api_statuses,
         recent_runs=recent_runs
     )
