@@ -653,12 +653,14 @@ class EnrichmentOrchestrator:
             pending_ids = self.progress_tracker.get_pending()
             failed_ids = self.progress_tracker.get_failed()
             successful_ids = self.progress_tracker.get_successful()
+            skipped_ids = self.progress_tracker.get_skipped()
 
             # Only resume if enabled AND we have progress
             if self.resume and (successful_ids or failed_ids):
                 logger.info(
                     f"[RESUME] Auto-resume detected: {len(successful_ids)} successful, "
-                    f"{len(failed_ids)} failed, {len(pending_ids)} pending"
+                    f"{len(failed_ids)} failed, {len(skipped_ids)} skipped, "
+                    f"{len(pending_ids)} pending"
                 )
 
                 # Keep only successfully enriched practices (exclude failed ones for retry)
@@ -673,11 +675,11 @@ class EnrichmentOrchestrator:
 
                 logger.info(
                     f"Kept {len(kept_enriched)} successful practices, "
-                    f"will retry {len(to_retry_ids)} failed practices"
+                    f"will retry {len(to_retry_ids)} failed + skipped practices"
                 )
 
-                # Process pending + failed practices
-                to_process_ids = set(pending_ids + failed_ids)
+                # Process pending + failed + skipped practices
+                to_process_ids = set(pending_ids + failed_ids + skipped_ids)
                 practices = [p for p in practices if p['practice_id'] in to_process_ids]
 
                 logger.info(f"Processing {len(practices)} remaining practices")

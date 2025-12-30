@@ -141,7 +141,7 @@ async def _enrich_practices_async(
         try:
             # Get practices to enrich
             practices_query = db.session.query(Practice).filter(
-                Practice.enrichment_status.in_(['pending', 'failed'])
+                Practice.enrichment_status.in_(['pending', 'failed', 'skipped'])
             )
 
             if limit:

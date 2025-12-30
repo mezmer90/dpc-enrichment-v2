@@ -213,6 +213,14 @@ class ProgressTracker:
                 if progress.status == PracticeStatus.SUCCESS
             ]
 
+    def get_skipped(self) -> List[str]:
+        """Get list of skipped practice IDs"""
+        with self._lock:
+            return [
+                pid for pid, progress in self._practices.items()
+                if progress.status == PracticeStatus.SKIPPED
+            ]
+
     def _update_statistics(self):
         """Update internal statistics (assumes lock is held)"""
         self._stats['pending'] = sum(
