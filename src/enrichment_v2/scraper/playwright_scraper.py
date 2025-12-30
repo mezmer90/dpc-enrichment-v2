@@ -1,4 +1,8 @@
-"""Playwright scraper implementation (Fallback 2)"""
+"""
+Playwright scraper implementation (Fallback 2)
+
+Uses Playwright for browser automation with guaranteed cleanup and timeouts.
+"""
 
 import asyncio
 from typing import List, Optional, Set
@@ -27,6 +31,7 @@ def normalize_to_root_url(url: str) -> str:
 
 class PlaywrightScraper(BaseScraper):
     async def scrape_page(self, url: str, **kwargs) -> PageContent:
+        """Scrape page with guaranteed browser cleanup and timeouts."""
         import time
         start_time = time.time()
 
@@ -34,27 +39,54 @@ class PlaywrightScraper(BaseScraper):
         if url.lower().endswith(('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.exe', '.dmg')):
             raise ScraperError(f"Skipping download file: {url}")
 
+        browser = None
         try:
             from playwright.async_api import async_playwright
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page(user_agent=self.user_agent)
-                await page.goto(url, timeout=self.timeout * 1000, wait_until='domcontentloaded')
+                try:
+                    # Add timeout to browser launch (30 seconds max)
+                    browser = await asyncio.wait_for(
+                        p.chromium.launch(headless=True),
+                        timeout=30
+                    )
 
-                html = await page.content()
-                title = await page.title()
+                    page = await browser.new_page(user_agent=self.user_agent)
 
-                await browser.close()
+                    # Add timeout to page load
+                    await asyncio.wait_for(
+                        page.goto(url, wait_until='domcontentloaded'),
+                        timeout=self.timeout
+                    )
 
-                load_time = time.time() - start_time
-                self.update_stats(True, len(html), load_time)
+                    html = await page.content()
+                    title = await page.title()
 
-                # Convert HTML to markdown
-                markdown = MarkdownConverter.convert(html, method='auto')
+                    load_time = time.time() - start_time
+                    self.update_stats(True, len(html), load_time)
 
-                return PageContent(url=url, html=html, markdown=markdown, title=title, load_time=load_time)
+                    # Convert HTML to markdown
+                    markdown = MarkdownConverter.convert(html, method='auto')
 
+                    return PageContent(
+                        url=url,
+                        html=html,
+                        markdown=markdown,
+                        title=title,
+                        load_time=load_time
+                    )
+
+                finally:
+                    # CRITICAL: Always close browser to prevent resource leaks
+                    if browser:
+                        try:
+                            await asyncio.wait_for(browser.close(), timeout=5)
+                        except:
+                            pass  # Ignore errors during cleanup
+
+        except asyncio.TimeoutError:
+            self.update_stats(False, 0, time.time() - start_time)
+            raise ScraperError(f"Playwright timeout for {url}")
         except Exception as e:
             self.update_stats(False, 0, time.time() - start_time)
             raise ScraperError(f"Playwright failed for {url}: {e}")

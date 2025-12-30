@@ -50,16 +50,28 @@ class Crawl4AIScraper(BaseScraper):
         self._crawler = None
 
     async def _ensure_crawler(self):
-        """Ensure crawler is initialized"""
+        """Ensure crawler is initialized with timeout"""
         if self._crawler is None:
             try:
                 from crawl4ai import AsyncWebCrawler
-                self._crawler = AsyncWebCrawler(
-                    verbose=False,
-                    headless=True,
+
+                # Add timeout to initialization (30 seconds max)
+                async def init_crawler():
+                    crawler = AsyncWebCrawler(
+                        verbose=False,
+                        headless=True,
+                    )
+                    await crawler.__aenter__()
+                    return crawler
+
+                self._crawler = await asyncio.wait_for(
+                    init_crawler(),
+                    timeout=30
                 )
-                await self._crawler.__aenter__()
                 logger.debug("Crawl4AI crawler initialized")
+
+            except asyncio.TimeoutError:
+                raise ScraperError("Crawl4AI initialization timeout (30s)")
             except ImportError:
                 raise ScraperError("crawl4ai not installed. Install with: pip install crawl4ai")
             except Exception as e:
@@ -364,10 +376,17 @@ class Crawl4AIScraper(BaseScraper):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit - cleanup"""
+        """Async context manager exit - cleanup with timeout"""
         if self._crawler:
             try:
-                await self._crawler.__aexit__(exc_type, exc_val, exc_tb)
-            except:
-                pass
-            self._crawler = None
+                # Add timeout to cleanup (10 seconds max)
+                await asyncio.wait_for(
+                    self._crawler.__aexit__(exc_type, exc_val, exc_tb),
+                    timeout=10
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Crawl4AI cleanup timed out (10s)")
+            except Exception as e:
+                logger.warning(f"Crawl4AI cleanup error: {e}")
+            finally:
+                self._crawler = None

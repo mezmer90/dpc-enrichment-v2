@@ -33,6 +33,7 @@ from .config import (
 from .scraper.scraper_factory import ScraperFactory
 from .scraper.base_scraper import ScraperStatus, ScraperResult, ScraperMethod
 from .scraper.circuit_breaker import CircuitBreakerManager, CircuitBreakerOpenError, CircuitState
+from .scraper.system_circuit_breaker import SystemCircuitBreaker
 from .markdown.converter import MarkdownConverter
 from .markdown.merger import MarkdownMerger
 from .ai.gemini_client import GeminiClient
@@ -41,6 +42,7 @@ from .storage.markdown_storage import MarkdownStorage
 from .storage.data_storage import DataStorage
 from .utils.progress import ProgressTracker, PracticeStatus
 from .utils.rate_limiter import RateLimiter
+from .utils.resource_monitor import ResourceMonitor
 from .utils.api_exceptions import APIBudgetError, APIRateLimitError
 from .utils.api_pause_handler import APIPauseHandler
 
@@ -144,6 +146,10 @@ class EnrichmentOrchestrator:
         self.rate_limiter = RateLimiter()
         self.circuit_breaker_manager = CircuitBreakerManager()
         self.api_pause_handler = APIPauseHandler()
+
+        # Resource monitoring and system circuit breaker
+        self.resource_monitor = ResourceMonitor()
+        self.system_circuit_breaker = SystemCircuitBreaker(self.resource_monitor)
 
         # Statistics
         self.stats = EnrichmentStats()
@@ -254,7 +260,32 @@ class EnrichmentOrchestrator:
 
     async def _enrich_practice(self, practice: Dict):
         """
-        Enrich a single practice through complete pipeline.
+        Enrich a single practice through complete pipeline with 10-minute timeout.
+
+        Args:
+            practice: Practice data dict
+        """
+        practice_id = practice['practice_id']
+
+        try:
+            # Wrap entire enrichment with 10-minute timeout to prevent hangs
+            await asyncio.wait_for(
+                self._enrich_practice_impl(practice),
+                timeout=600  # 10 minutes maximum per practice
+            )
+
+        except asyncio.TimeoutError:
+            logger.error(f"[{practice_id}] Practice enrichment timed out after 10 minutes")
+            await self._update_stats(failed=1, failure_reason='timeout_10min')
+            self.progress_tracker.update_status(
+                practice_id,
+                PracticeStatus.FAILED,
+                error='Enrichment timed out after 10 minutes'
+            )
+
+    async def _enrich_practice_impl(self, practice: Dict):
+        """
+        Implementation of practice enrichment (called with timeout wrapper).
 
         Args:
             practice: Practice data dict
@@ -270,6 +301,25 @@ class EnrichmentOrchestrator:
         async with self._count_lock:
             self._current_count += 1
             current_num = self._current_count
+
+        # Check system resources BEFORE starting
+        can_proceed, reason = self.system_circuit_breaker.check_resources_before_task()
+
+        if not can_proceed:
+            logger.warning(f"[{practice_id}] Skipping due to resource constraints: {reason}")
+            await self._update_stats(skipped=1, failure_reason='system_resources_exhausted')
+            self.progress_tracker.update_status(
+                practice_id,
+                PracticeStatus.SKIPPED,
+                error=reason
+            )
+            # Wait to let resources recover
+            await asyncio.sleep(30)
+            return
+
+        # Log resources every 10 practices
+        if current_num % 10 == 0:
+            self.system_circuit_breaker.log_resources()
 
         try:
             logger.info(f"Processing {current_num}/{self.stats.total_practices}: {display_name}")

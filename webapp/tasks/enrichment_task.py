@@ -353,9 +353,11 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
         self.db_session = db_session
         self._pause_requested = False
 
-    async def _enrich_practice(self, practice: Dict):
+    async def _enrich_practice_impl(self, practice: Dict):
         """
-        Override parent method to add database updates and progress publishing.
+        Override parent implementation to add database updates and progress publishing.
+
+        This is the actual implementation that gets called with timeout wrapper.
 
         Args:
             practice: Practice data dict
@@ -408,9 +410,9 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
             }
         )
 
-        # Run parent enrichment logic
+        # Run parent enrichment logic (the implementation, not the timeout wrapper)
         try:
-            await super()._enrich_practice(practice)
+            await super()._enrich_practice_impl(practice)
 
             # Check the practice status in progress tracker
             # (parent method may return early without exception if scraping failed)

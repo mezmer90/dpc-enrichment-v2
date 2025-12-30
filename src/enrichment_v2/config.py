@@ -42,7 +42,7 @@ PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
 # ==================== SCRAPING ====================
 
 # Multi-threading settings
-MAX_WORKERS = 6  # Number of concurrent scrapers (very safe, increase to 8-10 if laptop handles well)
+MAX_WORKERS = 2  # Number of concurrent scrapers (reduced from 6 to prevent resource exhaustion)
 BATCH_SIZE = 50  # Practices per batch
 
 # Timeout settings (seconds)
