@@ -44,7 +44,7 @@ All critical fixes have been implemented to resolve the resource exhaustion and 
 pip install -r requirements.txt
 ```
 
-**New dependency added**: `psutil==5.9.8`
+**New dependency added**: `psutil==6.1.1` (upgraded from 5.9.8 to satisfy crawl4ai dependency)
 
 ### Step 2: Set Environment Variables in Railway
 

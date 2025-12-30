@@ -111,7 +111,7 @@ def main():
         print("=" * 60)
         print(f"\nError: {e}")
         print("\nTroubleshooting:")
-        print("1. Install psutil: pip install psutil==5.9.8")
+        print("1. Install psutil: pip install psutil==6.1.1")
         print("2. Install requirements: pip install -r requirements.txt")
         print("\n")
 

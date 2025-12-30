@@ -45,4 +45,4 @@ geopy==2.4.1
 # Utilities
 python-dotenv==1.0.0
 tqdm==4.66.1
-psutil==5.9.8
+psutil==6.1.1
