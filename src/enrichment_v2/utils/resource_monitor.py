@@ -50,7 +50,7 @@ class ResourceMonitor:
             'memory_percent': 80,        # Max 80% system RAM
             'memory_mb': 3000,           # Max 3GB per process
             'num_threads': 150,          # Max 150 threads (was hitting 500+)
-            'num_children': 30,          # Max 30 child processes
+            'num_children': 100,         # Max 100 child processes (browsers spawn 20-30 helpers each)
             'open_files': 400            # Max 400 open files
         }
 
