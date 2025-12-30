@@ -178,10 +178,18 @@ async def _enrich_practices_async(
 
             markdown_dir.mkdir(parents=True, exist_ok=True)
 
+            # Clean up old progress/output files to prevent resume from stale data
+            # (resume=False in orchestrator, so we want fresh runs)
+            if progress_file.exists():
+                progress_file.unlink()
+                logger.info(f"Removed old progress file for fresh run")
+            if output_file.exists():
+                output_file.unlink()
+                logger.info(f"Removed old output file for fresh run")
+
             # Create wrapper orchestrator with database callbacks
             orchestrator = DatabaseIntegratedOrchestrator(
                 openrouter_api_key=OPENROUTER_API_KEY,
-                scraperapi_key=SCRAPERAPI_KEY,
                 input_file=input_file,
                 output_file=output_file,
                 markdown_dir=markdown_dir,
@@ -291,7 +299,6 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
     def __init__(
         self,
         openrouter_api_key: str,
-        scraperapi_key: str,
         input_file: Path,
         output_file: Path,
         markdown_dir: Path,
@@ -415,7 +422,7 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
                 if db_practice:
                     db_practice.enrichment_status = 'failed'
                     progress_info = self.progress_tracker.get_progress(practice_id)
-                    db_practice.data = {'error': progress_info.error if progress_info else 'Enrichment failed'}
+                    db_practice.data = {'error': progress_info.error_message if progress_info else 'Enrichment failed'}
                     self.db_session.commit()
                     logger.info(f"Marked practice {practice_id} as failed (from progress tracker)")
 
@@ -426,7 +433,7 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
                     {
                         'practice_id': practice_id,
                         'practice_name': practice.get('practice_name', ''),
-                        'error': progress_info.error if progress_info else 'Scraping failed',
+                        'error': progress_info.error_message if progress_info else 'Scraping failed',
                         'error_type': 'ScrapingError'
                     }
                 )
@@ -436,7 +443,7 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
                 if db_practice:
                     db_practice.enrichment_status = 'skipped'
                     progress_info = self.progress_tracker.get_progress(practice_id)
-                    db_practice.data = {'reason': progress_info.error if progress_info else 'Practice skipped'}
+                    db_practice.data = {'reason': progress_info.error_message if progress_info else 'Practice skipped'}
                     self.db_session.commit()
                     logger.info(f"Marked practice {practice_id} as skipped (from progress tracker)")
 
@@ -447,7 +454,7 @@ class DatabaseIntegratedOrchestrator(EnrichmentOrchestrator):
                     {
                         'practice_id': practice_id,
                         'practice_name': practice.get('practice_name', ''),
-                        'error': progress_info.error if progress_info else 'Practice skipped'
+                        'error': progress_info.error_message if progress_info else 'Practice skipped'
                     }
                 )
                 return

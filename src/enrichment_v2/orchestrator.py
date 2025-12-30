@@ -604,8 +604,8 @@ class EnrichmentOrchestrator:
             failed_ids = self.progress_tracker.get_failed()
             successful_ids = self.progress_tracker.get_successful()
 
-            # Only resume if we actually have some progress (not just initialized)
-            if successful_ids or failed_ids:
+            # Only resume if enabled AND we have progress
+            if self.resume and (successful_ids or failed_ids):
                 logger.info(
                     f"[RESUME] Auto-resume detected: {len(successful_ids)} successful, "
                     f"{len(failed_ids)} failed, {len(pending_ids)} pending"
@@ -632,8 +632,11 @@ class EnrichmentOrchestrator:
 
                 logger.info(f"Processing {len(practices)} remaining practices")
             else:
-                # Progress file exists but empty (no completed/failed yet) - treat as fresh
-                logger.info("Progress file exists but no progress yet, treating as fresh run")
+                # Resume disabled or no progress - treat as fresh run
+                if not self.resume and (successful_ids or failed_ids):
+                    logger.info("Progress file exists but resume=False, starting fresh run")
+                else:
+                    logger.info("Progress file exists but no progress yet, treating as fresh run")
                 practice_ids = [p['practice_id'] for p in practices]
                 self.progress_tracker.initialize_practices(practice_ids)
         else:

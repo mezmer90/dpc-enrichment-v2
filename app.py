@@ -10,6 +10,15 @@ from pathlib import Path
 from functools import wraps
 from webapp.extensions import db
 
+# Load environment variables from .env file (for local development)
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent / '.env'
+    if env_file.exists():
+        load_dotenv(env_file)
+except ImportError:
+    pass  # python-dotenv not installed (Railway doesn't need it)
+
 
 def require_password(f):
     """Decorator to require password for route access"""
